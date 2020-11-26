@@ -9,6 +9,7 @@
 #include "rawReader.h"
 #include "shader.h"
 #include "camera.h"
+#include "frameBuffer.h"
 
 // call back functions
 

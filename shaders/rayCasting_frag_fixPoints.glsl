@@ -25,7 +25,7 @@ void main()
 
     if(cdIn == cdOut)   discard;
 
-    float stepSize =  0.0001f;
+    float stepSize =  0.001f;
     
 	vec3 currentPos = cdIn;
 	vec3 color = vec3(0.0, 0.0, 0.0);
