@@ -61,7 +61,7 @@ unsigned char transFunctionub[] = {
 
 float transFunctionf[] = {
 	0.231371, 0.290839, 0.752941, 0.0,
-	0.865003, 0.865003, 0.865003, 0.5,
+	0.865003, 0.865003, 0.865003, 0.6,
 	0.705882, 0.0156863, 0.14902, 1.0
 };
 
@@ -274,7 +274,9 @@ int main()
 
 
 	// get color texture here
-	Shader rayCasting("../shaders/rayCasting_vert.glsl", "../shaders/rayCasting_frag.glsl");
+	// Shader rayCasting("../shaders/rayCasting_vert.glsl", "../shaders/rayCasting_frag.glsl");
+	Shader rayCasting("../shaders/rayCasting_vert.glsl", "../shaders/rayCasting_frag_fixPoints.glsl");
+	
 	rayCasting.use();
 	rayCasting.setMat4("model", model);
 	rayCasting.setMat4("view", view);

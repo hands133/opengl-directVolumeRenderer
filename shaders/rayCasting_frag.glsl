@@ -34,7 +34,6 @@ void main()
 	{
 		float value = texture(volume, currentPos).r;
 		vec4 tfColor = texture(tFunc, (value - vMin) / (vMax - vMin));
-		// vec4 tfColor = texture(tFunc, 0.5);
 
 		vec3 colorNow = tfColor.rgb;
 		float alphaNow = tfColor.a;
