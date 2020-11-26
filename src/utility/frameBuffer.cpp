@@ -1,6 +1,6 @@
 #include "frameBuffer.h"
 
-frameBuffer::frameBuffer()
+frameBuffer::frameBuffer(const std::string& str) : descrip(str)
 {
     glGenFramebuffers(1, &ID);
 }
@@ -24,9 +24,18 @@ void frameBuffer::unbind()
 
 void frameBuffer::checkStatus()
 {
+    bind();
     GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
     if(status == GL_FRAMEBUFFER_COMPLETE)
-        std::cout << "frame buffer ready." << std::endl;
+        std::cout << "[FRAME BUFFER]::" << descrip << " ready." << std::endl;
     else
-        std::cout << "frame buffer not ready!" << std::endl;
+        std::cout << "[FRAME BUFFER]::" << descrip << " not ready!" << std::endl;
+    unbind();
+}
+
+void frameBuffer::bindTexture2d(GLenum attachment, GLint texID, GLint level)
+{
+    bind();
+    glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, texID, level);
+    unbind();
 }

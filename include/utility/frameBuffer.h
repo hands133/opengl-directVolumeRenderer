@@ -3,13 +3,14 @@
 #include <glad/glad.h>
 
 #include <iostream>
+#include <string>
 
 // class for framebuffer
 class frameBuffer{
 
 public:
 
-    frameBuffer();
+    frameBuffer(const std::string& str);
     ~frameBuffer();
 
     unsigned int getID() { return ID; }
@@ -17,8 +18,11 @@ public:
     void bind();
     void unbind();
     void checkStatus();
+    void bindTexture2d(GLenum attachment, GLint texID, GLint level);
 
 private:
     unsigned int ID;
+
+    std::string descrip;
 
 };

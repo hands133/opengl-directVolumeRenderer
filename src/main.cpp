@@ -137,9 +137,7 @@ int main()
 	shaderIn.setMat4("view", view);
 	shaderIn.setMat4("projection", projection);
 
-	unsigned int framebufferIn;
-	glGenFramebuffers(1, &framebufferIn);
-	glBindFramebuffer(GL_FRAMEBUFFER, framebufferIn);
+	frameBuffer projInFBuffer("project_intro");
 
 	unsigned int framebufferColorTextureIn;
 	glGenTextures(1, &framebufferColorTextureIn);
@@ -149,7 +147,8 @@ int main()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, framebufferColorTextureIn, 0);
+
+	projInFBuffer.bindTexture2d(GL_COLOR_ATTACHMENT0, framebufferColorTextureIn, 0);
 
 	unsigned int framebufferDepthTextureIn;
 	glGenTextures(1, &framebufferDepthTextureIn);
@@ -159,15 +158,11 @@ int main()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, framebufferDepthTextureIn, 0);
+	projInFBuffer.bindTexture2d(GL_DEPTH_ATTACHMENT, framebufferDepthTextureIn, 0);
 
-	GLenum statusIn = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-	if (statusIn != GL_FRAMEBUFFER_COMPLETE)
-		std::cout << "frame buffer in not ready!" << std::endl;
-	else
-		std::cout << "frame buffer in ready!" << std::endl;
+	projInFBuffer.checkStatus();
 
-	glBindFramebuffer(GL_FRAMEBUFFER, framebufferIn);
+	projInFBuffer.bind();
 	glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
 
 	glClearDepth(1.0);
@@ -180,15 +175,11 @@ int main()
 	glDepthFunc(GL_LESS);
 	// render to frame buffer
 	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, NULL);
-
 	// unbind framebuffer to return to default render pipeline
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	projInFBuffer.unbind();
 
 	// render out put
-
-	unsigned int framebufferOut;
-	glGenFramebuffers(1, &framebufferOut);
-	glBindFramebuffer(GL_FRAMEBUFFER, framebufferOut);
+	frameBuffer projOutFBuffer("project_outro");
 
 	unsigned int framebufferColorTextureOut;
 	glGenTextures(1, &framebufferColorTextureOut);
@@ -198,7 +189,7 @@ int main()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, framebufferColorTextureOut, 0);
+	projOutFBuffer.bindTexture2d(GL_COLOR_ATTACHMENT0, framebufferColorTextureOut, 0);
 
 	unsigned int framebufferDepthTextureOut;
 	glGenTextures(1, &framebufferDepthTextureOut);
@@ -208,15 +199,11 @@ int main()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, framebufferDepthTextureOut, 0);
+	projOutFBuffer.bindTexture2d(GL_DEPTH_ATTACHMENT, framebufferDepthTextureOut, 0);
 
-	GLenum statusOut = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-	if (statusOut != GL_FRAMEBUFFER_COMPLETE)
-		std::cout << "frame buffer out not ready!" << std::endl;
-	else
-		std::cout << "frame buffer out ready!" << std::endl;
-
-	glBindFramebuffer(GL_FRAMEBUFFER, framebufferOut);
+	projOutFBuffer.checkStatus();
+	
+	projOutFBuffer.bind();
 	glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
 
 	glClearDepth(0.0);
@@ -231,8 +218,7 @@ int main()
 	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, NULL);
 
 	// unbind framebuffer to return to default render pipeline
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
+	projOutFBuffer.unbind();
 
 
 	 //texture : volume
@@ -331,9 +317,6 @@ int main()
 	glDeleteBuffers(1, &VAO);
 	glDeleteBuffers(1, &VBO);
 	glDeleteBuffers(1, &EBO);
-
-	glDeleteFramebuffers(1, &framebufferIn);
-	glDeleteFramebuffers(1, &framebufferOut);
 
 	glfwTerminate();                // collect resource
 
