@@ -18,8 +18,11 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
 
 // global data and numerics
-const unsigned int SCR_WIDTH = 1280;
-const unsigned int SCR_HEIGHT = 720;
+// const unsigned int SCR_WIDTH = 1280;
+// const unsigned int SCR_HEIGHT = 720;
+
+const unsigned int SCR_WIDTH = 600;
+const unsigned int SCR_HEIGHT = 600;
 
 float xmin = -0.5;
 float xmax = 0.5;
@@ -40,8 +43,8 @@ float cubeVerts[] = {
 };
 
 unsigned int indices[] = {
-	1, 0, 4,
-	4, 5, 1,
+	1, 5, 4,
+	4, 0, 1,
 	3, 7, 6,
 	6, 2, 3,
 	3, 0, 4,
@@ -66,6 +69,7 @@ unsigned char transFunctionub[] = {
 // 	0.705882, 0.0156863, 0.14902, 1.0
 // };
 float transFunctionf[] = {
+	// 1.0, 1.0, 1.0, 0.00195,
 	1.0, 1.0, 1.0, 0.0,
 	0.0, 0.0, 1.0, 0.16666666,
 	0.0, 1.0, 1.0, 0.33333333,
@@ -110,9 +114,10 @@ int main()
 
 	// camera
 	Camera camera(glm::vec3(0.0, 0.0, 3.0));
+	// Camera camera(glm::vec3(0.0, 0.0, 2.5));
 
 	glm::mat4 model = glm::mat4(1.0f);
-	model = glm::rotate(model, glm::radians(90.0f), glm::vec3(1.0, 1.0, 0.0));
+	model = glm::rotate(model, glm::radians(45.0f), glm::vec3(1.0, 0.0, 0.0));
 	glm::mat4 view = camera.GetViewMatrix();
 	glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
 
@@ -146,13 +151,6 @@ int main()
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_BLEND);
 
-	Shader shaderIn("../shaders/rayIn_vert.glsl", "../shaders/rayIn_frag.glsl");
-
-	shaderIn.use();
-	shaderIn.setMat4("model", model);
-	shaderIn.setMat4("view", view);
-	shaderIn.setMat4("projection", projection);
-
 	// frame buffer for intro point
 	frameBuffer projInFBuffer("project_intro");
 	// color texture (store intro point)
@@ -166,23 +164,6 @@ int main()
 	projInFBuffer.bindTexture2d(GL_DEPTH_ATTACHMENT, projInDepthTexture.getID(), projInDepthTexture.getLvl());
 
 	projInFBuffer.checkStatus();
-
-	projInFBuffer.bind();
-
-	glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
-
-	glClearDepth(1.0);
-	glClearColor(0.0, 1.0, 1.0, 1.0);
-	glClearColor(bgColor.x, bgColor.y, bgColor.z, bgColor.w);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	shaderIn.use();
-	glBindVertexArray(VAO);
-
-	glDepthFunc(GL_LESS);
-	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, NULL);
-	// unbind framebuffer to return to default render pipeline
-	projInFBuffer.unbind();
 
 	// render out put
 	frameBuffer projOutFBuffer("project_outro");
@@ -199,25 +180,7 @@ int main()
 
 	projOutFBuffer.checkStatus();
 
-	projOutFBuffer.bind();
-
-	glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
-
-	glClearDepth(0.0);
-	glClearColor(bgColor.x, bgColor.y, bgColor.z, bgColor.w);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	shaderIn.use();
-	glBindVertexArray(VAO);
-
-	glDepthFunc(GL_GREATER);
-	// render to frame buffer
-	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, NULL);
-
-	// unbind framebuffer to return to default render pipeline
-	projOutFBuffer.unbind();
-
-	 //texture : volume
+	// texture : volume
 	rawFile rawfile;
 	rawfile.read("C:\\Users\\hands33\\Desktop\\Bachelor\\Computer Graphics\\project\\src\\proj1\\data_256x256x256_float.dat");
 	std::cout << rawfile;
@@ -239,13 +202,11 @@ int main()
 
 	texTransFunc.setData(GL_RGBA, glm::ivec3(7, 0, 0), 0, GL_RGBA, GL_FLOAT, transFunctionf);
 	//glTexImage1D(GL_TEXTURE_1D, 0, GL_RGBA, 3, 0, GL_RGBA, GL_UNSIGNED_BYTE, transFunctionub);
+	Shader shaderIn("../shaders/rayIn_vert.glsl", "../shaders/rayIn_frag.glsl");
 
 	Shader rayCasting("../shaders/rayCasting_vert.glsl", "../shaders/rayCasting_frag_fixPoints.glsl");
 	
 	rayCasting.use();
-	rayCasting.setMat4("model", model);
-	rayCasting.setMat4("view", view);
-	rayCasting.setMat4("projection", projection);
 	rayCasting.setFloat("SCR_WIDTH", SCR_WIDTH);
 	rayCasting.setFloat("SCR_HEIGHT", SCR_HEIGHT);
 	rayCasting.setInt("coordIn", projInTexture.getID() - 1);
@@ -257,19 +218,70 @@ int main()
 	rayCasting.setFloat("vMin", rangeSpan.x);
 	rayCasting.setFloat("vMax", rangeSpan.y);
 
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_CONSTANT_ALPHA);
-
 	glEnable(GL_CULL_FACE);
-	// glCullFace(GL_BACK);
 
 	while (!glfwWindowShouldClose(window))
 	{
+
 		processInput(window);
 
-		glDepthFunc(GL_GREATER);
-		glClearDepth(0.0);
+		glDisable(GL_BLEND);
+
 		glClearColor(bgColor.x, bgColor.y, bgColor.z, bgColor.w);
+
+		model = glm::rotate(model, glm::radians(2.0f), glm::vec3(0.0f, 1.0f, 0.0));
+
+		
+		shaderIn.use();
+		shaderIn.setMat4("model", model);
+		shaderIn.setMat4("view", view);
+		shaderIn.setMat4("projection", projection);
+
+		// render to texture, intro buffer
+		projInFBuffer.bind();
+
+		glDepthFunc(GL_LESS);
+		glCullFace(GL_BACK);
+		glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
+
+		glClearDepth(1.0);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		glBindVertexArray(VAO);
+
+		glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, NULL);
+
+		projInFBuffer.unbind();
+
+		// render to texture, outro buffer
+		projOutFBuffer.bind();
+
+		glDepthFunc(GL_GREATER);
+		glCullFace(GL_FRONT);
+		glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
+
+		glClearDepth(0.0);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		shaderIn.use();
+		glBindVertexArray(VAO);
+
+		glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, NULL);
+
+		projOutFBuffer.unbind();
+
+		// render to screen
+		rayCasting.use();
+		rayCasting.setMat4("model", model);
+		rayCasting.setMat4("view", view);
+		rayCasting.setMat4("projection", projection);
+
+		glDepthFunc(GL_LESS);
+		glCullFace(GL_BACK);
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_CONSTANT_ALPHA);
+
+		glClearDepth(1.0);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		rayCasting.use();
@@ -286,6 +298,7 @@ int main()
 		texTransFunc.bind();
 
 		glBindVertexArray(VAO);
+
 		glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, NULL);
 
 		glfwSwapBuffers(window);
