@@ -35,7 +35,6 @@ void main()
     vec3 dir = cdOut - cdIn;
     vec3 deltaDir = dir * (stepSize / length(dir));
     float numSamp = length(dir) / stepSize;
-
     
     for(int i = 0; i < numSamp; ++i)
     {
@@ -44,7 +43,7 @@ void main()
 
         if(tmpColor.a > 0.0)
         {
-            tmpColor.a = 1.0 - pow(1.0 - tmpColor.a, stepSize * 200.0f);
+            tmpColor.a = 1.0 - pow(1.0 - tmpColor.a, stepSize * 255.999f);
             color += (1.0 - alpha) * tmpColor.rgb * tmpColor.a;
             alpha += (1.0 - alpha) * tmpColor.a;
         }

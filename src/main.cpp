@@ -10,6 +10,7 @@
 #include "shader.h"
 #include "camera.h"
 #include "frameBuffer.h"
+#include "texture.h"
 
 // call back functions
 
@@ -17,7 +18,6 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
 
 // global data and numerics
-
 const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
 
@@ -60,11 +60,26 @@ unsigned char transFunctionub[] = {
 	180, 4, 38, 255
 };
 
+// float transFunctionf[] = {
+// 	0.231371, 0.290839, 0.752941, 0.0,
+// 	0.865003, 0.865003, 0.865003, 0.6,
+// 	0.705882, 0.0156863, 0.14902, 1.0
+// };
 float transFunctionf[] = {
-	0.231371, 0.290839, 0.752941, 0.0,
-	0.865003, 0.865003, 0.865003, 0.6,
-	0.705882, 0.0156863, 0.14902, 1.0
+	1.0, 1.0, 1.0, 0.0,
+	0.0, 0.0, 1.0, 0.16666666,
+	0.0, 1.0, 1.0, 0.33333333,
+	0.0, 1.0, 0.0, 0.5,
+	1.0, 1.0, 0.0, 0.66666666,
+	1.0, 0.0, 0.0, 0.83333333,
+	0.878431, 0.0, 1.0
 };
+
+glm::fvec4 bgColor = glm::fvec4(
+	82.0 / 255.0,
+	87.0 / 255.0,
+	110.0 / 255.0,
+	255.0 / 255.0);
 
 int main()
 {
@@ -97,6 +112,7 @@ int main()
 	Camera camera(glm::vec3(0.0, 0.0, 3.0));
 
 	glm::mat4 model = glm::mat4(1.0f);
+	model = glm::rotate(model, glm::radians(90.0f), glm::vec3(1.0, 1.0, 0.0));
 	glm::mat4 view = camera.GetViewMatrix();
 	glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
 
@@ -137,43 +153,33 @@ int main()
 	shaderIn.setMat4("view", view);
 	shaderIn.setMat4("projection", projection);
 
+	// frame buffer for intro point
 	frameBuffer projInFBuffer("project_intro");
+	// color texture (store intro point)
+	Texture projInTexture("project_intro::color", GL_TEXTURE_2D, 0, GL_CLAMP_TO_EDGE, GL_LINEAR);
+	projInTexture.setData(GL_RGBA, glm::ivec3(SCR_WIDTH, SCR_HEIGHT, 0), 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	// depth texture (store depth)
+	Texture projInDepthTexture("proj_intro::depth", GL_TEXTURE_2D, 0, GL_CLAMP_TO_EDGE, GL_LINEAR);
+	projInDepthTexture.setData(GL_DEPTH_COMPONENT32F, glm::ivec3(SCR_WIDTH, SCR_HEIGHT, 0), 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
 
-	unsigned int framebufferColorTextureIn;
-	glGenTextures(1, &framebufferColorTextureIn);
-	glBindTexture(GL_TEXTURE_2D, framebufferColorTextureIn);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-
-	projInFBuffer.bindTexture2d(GL_COLOR_ATTACHMENT0, framebufferColorTextureIn, 0);
-
-	unsigned int framebufferDepthTextureIn;
-	glGenTextures(1, &framebufferDepthTextureIn);
-	glBindTexture(GL_TEXTURE_2D, framebufferDepthTextureIn);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, SCR_WIDTH, SCR_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	projInFBuffer.bindTexture2d(GL_DEPTH_ATTACHMENT, framebufferDepthTextureIn, 0);
+	projInFBuffer.bindTexture2d(GL_COLOR_ATTACHMENT0, projInTexture.getID(), projInTexture.getLvl());
+	projInFBuffer.bindTexture2d(GL_DEPTH_ATTACHMENT, projInDepthTexture.getID(), projInDepthTexture.getLvl());
 
 	projInFBuffer.checkStatus();
 
 	projInFBuffer.bind();
+
 	glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
 
 	glClearDepth(1.0);
 	glClearColor(0.0, 1.0, 1.0, 1.0);
+	glClearColor(bgColor.x, bgColor.y, bgColor.z, bgColor.w);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	shaderIn.use();
 	glBindVertexArray(VAO);
 
 	glDepthFunc(GL_LESS);
-	// render to frame buffer
 	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, NULL);
 	// unbind framebuffer to return to default render pipeline
 	projInFBuffer.unbind();
@@ -181,33 +187,24 @@ int main()
 	// render out put
 	frameBuffer projOutFBuffer("project_outro");
 
-	unsigned int framebufferColorTextureOut;
-	glGenTextures(1, &framebufferColorTextureOut);
-	glBindTexture(GL_TEXTURE_2D, framebufferColorTextureOut);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	projOutFBuffer.bindTexture2d(GL_COLOR_ATTACHMENT0, framebufferColorTextureOut, 0);
+	// color texture (store intro point)
+	Texture projOutTexture("project_outro::color", GL_TEXTURE_2D, 0, GL_CLAMP_TO_EDGE, GL_LINEAR);
+	projOutTexture.setData(GL_RGBA, glm::ivec3(SCR_WIDTH, SCR_HEIGHT, 0), 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	// depth texture (store depth)
+	Texture projOutDepthTexture("proj_outro::depth", GL_TEXTURE_2D, 0, GL_CLAMP_TO_EDGE, GL_LINEAR);
+	projOutDepthTexture.setData(GL_DEPTH_COMPONENT32F, glm::ivec3(SCR_WIDTH, SCR_HEIGHT, 0), 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
 
-	unsigned int framebufferDepthTextureOut;
-	glGenTextures(1, &framebufferDepthTextureOut);
-	glBindTexture(GL_TEXTURE_2D, framebufferDepthTextureOut);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, SCR_WIDTH, SCR_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	projOutFBuffer.bindTexture2d(GL_DEPTH_ATTACHMENT, framebufferDepthTextureOut, 0);
+	projOutFBuffer.bindTexture2d(GL_COLOR_ATTACHMENT0, projOutTexture.getID(), projOutTexture.getLvl());
+	projOutFBuffer.bindTexture2d(GL_DEPTH_ATTACHMENT, projOutDepthTexture.getID(), projOutDepthTexture.getLvl());
 
 	projOutFBuffer.checkStatus();
-	
+
 	projOutFBuffer.bind();
+
 	glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
 
 	glClearDepth(0.0);
-	glClearColor(0.0, 0.0, 0.0, 1.0);
+	glClearColor(bgColor.x, bgColor.y, bgColor.z, bgColor.w);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	shaderIn.use();
@@ -220,26 +217,17 @@ int main()
 	// unbind framebuffer to return to default render pipeline
 	projOutFBuffer.unbind();
 
-
 	 //texture : volume
 	rawFile rawfile;
 	rawfile.read("C:\\Users\\hands33\\Desktop\\Bachelor\\Computer Graphics\\project\\src\\proj1\\data_256x256x256_float.dat");
 	std::cout << rawfile;
 
-	unsigned int texVolume;
-	glGenTextures(1, &texVolume);
-	glBindTexture(GL_TEXTURE_3D, texVolume);
-	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	Texture texVolume("volume", GL_TEXTURE_3D, 0, GL_CLAMP_TO_EDGE, GL_LINEAR, true);
 
 	if (rawfile.data())
 	{
 		auto res = rawfile.resolution();
-		glTexImage3D(GL_TEXTURE_3D, 0, GL_R32F, res.x, res.y, res.z, 0, GL_RED, GL_FLOAT, rawfile.data());
-		glGenerateMipmap(GL_TEXTURE_3D);
+		texVolume.setData(GL_R32F, res, 0, GL_RED, GL_FLOAT, rawfile.data());
 	}
 	else
 	{
@@ -247,21 +235,11 @@ int main()
 		return -1;
 	}
 
-	// texture : transfer function
-	unsigned int texTransFunc;
-	glGenTextures(1, &texTransFunc);
-	glBindTexture(GL_TEXTURE_1D, texTransFunc);
-	glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	Texture texTransFunc("transfer function", GL_TEXTURE_1D, 0, GL_CLAMP_TO_EDGE, GL_LINEAR, true);
 
-	glTexImage1D(GL_TEXTURE_1D, 0, GL_RGBA, 3, 0, GL_RGBA, GL_FLOAT, transFunctionf);
+	texTransFunc.setData(GL_RGBA, glm::ivec3(7, 0, 0), 0, GL_RGBA, GL_FLOAT, transFunctionf);
 	//glTexImage1D(GL_TEXTURE_1D, 0, GL_RGBA, 3, 0, GL_RGBA, GL_UNSIGNED_BYTE, transFunctionub);
-	glGenerateMipmap(GL_TEXTURE_1D);
 
-
-	// get color texture here
-	// Shader rayCasting("../shaders/rayCasting_vert.glsl", "../shaders/rayCasting_frag.glsl");
 	Shader rayCasting("../shaders/rayCasting_vert.glsl", "../shaders/rayCasting_frag_fixPoints.glsl");
 	
 	rayCasting.use();
@@ -270,10 +248,10 @@ int main()
 	rayCasting.setMat4("projection", projection);
 	rayCasting.setFloat("SCR_WIDTH", SCR_WIDTH);
 	rayCasting.setFloat("SCR_HEIGHT", SCR_HEIGHT);
-	rayCasting.setInt("coordIn", framebufferColorTextureIn - 1);
-	rayCasting.setInt("coordOut", framebufferColorTextureOut - 1);
-	rayCasting.setInt("volume", texVolume - 1);
-	rayCasting.setInt("tFunc", texTransFunc - 1);
+	rayCasting.setInt("coordIn", projInTexture.getID() - 1);
+	rayCasting.setInt("coordOut", projOutTexture.getID() - 1);
+	rayCasting.setInt("volume", texVolume.getID() - 1);
+	rayCasting.setInt("tFunc", texTransFunc.getID() - 1);
 
 	auto rangeSpan = rawfile.spanValue();
 	rayCasting.setFloat("vMin", rangeSpan.x);
@@ -291,21 +269,21 @@ int main()
 
 		glDepthFunc(GL_GREATER);
 		glClearDepth(0.0);
-		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+		glClearColor(bgColor.x, bgColor.y, bgColor.z, bgColor.w);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		rayCasting.use();
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, framebufferColorTextureIn);
+		projInTexture.bind();
 
 		glActiveTexture(GL_TEXTURE2);
-		glBindTexture(GL_TEXTURE_2D, framebufferColorTextureOut);
+		projOutTexture.bind();
 
 		glActiveTexture(GL_TEXTURE4);
-		glBindTexture(GL_TEXTURE_3D, texVolume);
+		texVolume.bind();
 
 		glActiveTexture(GL_TEXTURE5);
-		glBindTexture(GL_TEXTURE_1D, texTransFunc);
+		texTransFunc.bind();
 
 		glBindVertexArray(VAO);
 		glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, NULL);
