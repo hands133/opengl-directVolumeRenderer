@@ -18,43 +18,46 @@ uniform sampler1D tFunc;
 
 void main()
 {
-	vec2 coordOnScreen = vec2(gl_FragCoord.x - 0.5, gl_FragCoord.y - 0.5);
+	vec2 coordOnScreen = vec2(gl_FragCoord.x + 0.5, gl_FragCoord.y + 0.5);
 	coordOnScreen /= vec2(SCR_WIDTH - 1, SCR_HEIGHT - 1);
 	vec3 cdIn = texture(coordIn, coordOnScreen).xyz;
 	vec3 cdOut = texture(coordOut, coordOnScreen).xyz;
 
-	vec3 rayL = normalize(cdOut - cdIn);
+    if(cdIn == cdOut)   discard;
 
+    float stepSize =  0.001f;
+    
 	vec3 currentPos = cdIn;
 	vec3 color = vec3(0.0, 0.0, 0.0);
 	float alpha = 0.0;
-	float step = 0.0001;
+    float disAccu = 0.0;
 
-	while (dot(currentPos - cdIn, currentPos - cdOut) <= 0)
-	{
-		float value = texture(volume, currentPos).r;
-		vec4 tfColor = texture(tFunc, (value - vMin) / (vMax - vMin));
+    vec3 dir = cdOut - cdIn;
+    vec3 deltaDir = dir * (stepSize / length(dir));
+    float numSamp = length(dir) / stepSize;
+    
+    for(int i = 0; i < numSamp; ++i)
+    {
+        float v = texture(volume, currentPos).r;
+        vec4 tmpColor = texture(tFunc, (v - vMin)/ (vMax - vMin));
 
-		vec3 colorNow = tfColor.rgb;
-		float alphaNow = tfColor.a;
+        if(tmpColor.a > 0.0)
+        {
+            tmpColor.a = 1.0 - pow(1.0 - tmpColor.a, stepSize * 255.0f);
+            color += (1.0 - alpha) * tmpColor.rgb * tmpColor.a;
+            alpha += (1.0 - alpha) * tmpColor.a;
+        }
 
-		vec3 colorIn = color;
-		float alphaIn = alpha;
+        currentPos += deltaDir;
+        disAccu += stepSize;
 
-		vec3 colorOut = colorIn * alphaIn + colorNow * alphaNow * (1 - alphaIn);
-		float alphaOut = alphaIn + alphaNow * (1 - alphaIn);
-
-		color = colorOut;
-		alpha = alphaOut;
-
-		if (alpha >= 1.0)
-		{
-			alpha = 1.0;
-			break;
-		}
-
-		currentPos += (step * rayL);
-	}
+        if(disAccu > length(dir))   break;
+        else if(alpha > 1.0)
+        {
+            alpha = 1.0;
+            break;
+        }
+    }
 
 	FragColor = vec4(color, alpha);
 }

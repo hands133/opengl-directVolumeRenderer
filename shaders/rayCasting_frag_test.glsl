@@ -13,12 +13,12 @@ uniform float vMax;
 uniform sampler2D coordIn;
 uniform sampler2D coordOut;
 
-uniform sampler3D volume;
+uniform usampler3D volume;
 uniform sampler1D tFunc;
 
 void main()
 {
-	vec2 coordOnScreen = vec2(gl_FragCoord.x - 0.5, gl_FragCoord.y - 0.5);
+	vec2 coordOnScreen = vec2(gl_FragCoord.x + 0.5, gl_FragCoord.y + 0.5);
 	coordOnScreen /= vec2(SCR_WIDTH - 1, SCR_HEIGHT - 1);
 	vec3 cdIn = texture(coordIn, coordOnScreen).xyz;
 	vec3 cdOut = texture(coordOut, coordOnScreen).xyz;
@@ -35,11 +35,11 @@ void main()
     vec3 dir = cdOut - cdIn;
     vec3 deltaDir = dir * (stepSize / length(dir));
     float numSamp = length(dir) / stepSize;
-    
+
     for(int i = 0; i < numSamp; ++i)
     {
         float v = texture(volume, currentPos).r;
-        vec4 tmpColor = texture(tFunc, (v - vMin)/ (vMax - vMin));
+        vec4 tmpColor = texture(tFunc, (v - vMin) / (vMax - vMin));
 
         if(tmpColor.a > 0.0)
         {

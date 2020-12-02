@@ -5,7 +5,7 @@
 //          ObjectFileName: xxxxxx.raw
 //          TaggedFilename: ---
 //          Resolution: X Y Z
-//          SliceThickness: ¦¤x ¦¤y ¦¤z
+//          SliceThickness: ï¿½ï¿½x ï¿½ï¿½y ï¿½ï¿½z
 //          Format:         UCHAR
 
 #include <iostream>
@@ -15,6 +15,7 @@
 #include <string.h>
 #include <map>
 #include <algorithm>
+#include <iterator>
 
 #include <glm/glm.hpp>
 
@@ -58,19 +59,22 @@ public:
 	// file operation
 	bool read(const std::string& datPath);
 	// data info
-	int itemSize() const { return eSize[static_cast<int>(type)]; }
+	int itemSize() const 			{ return eSize[static_cast<int>(type)]; }
 	size_t numPoints() const;
 	glm::vec2 spanX();
 	glm::vec2 spanY();
 	glm::vec2 spanZ();
-	glm::vec2 spanValue() { return glm::vec2(minV, maxV); }
+	glm::vec2 spanValue() 			{ return glm::vec2(minV, maxV); }
+	TYPE getType() const 			{ return type; }
+	std::string getTypeName() const { return nameType[static_cast<int>(type)]; }
 	// file info
 	std::string path() const		{ return info.rawPath; }
 	std::string tagPath() const		{ return info.tagPath; }
 	glm::uvec3  resolution() const	{ return info.resolution; }
 	glm::fvec3  sliceThick() const	{ return info.sliceThick; }
 	// data
-	void* data() const { return this->d; }
+	void* data() const 				{ return d; }
+	void dataLP(std::vector<float>&	bufferLP);
 	// auxiliary functions
 	std::ostream& operator<<(std::ostream& out) const;
 

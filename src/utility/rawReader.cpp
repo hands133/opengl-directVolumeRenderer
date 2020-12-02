@@ -74,7 +74,10 @@ bool rawFile::readDatFile(const std::string& datPath)
 	datFile.close();
 
 	// update raw file path to absolute direction
-	info.rawPath = datPath.substr(0, datPath.rfind('\\') + 1) + info.rawPath;
+	// int islash = datPath.rfind('\\');
+	// int invslash = datPath.rfind('/');
+
+	info.rawPath = datPath.substr(0, std::min(datPath.rfind('\\'), datPath.rfind('/')) + 1) + info.rawPath;
 
 	return true;
 }
@@ -272,4 +275,90 @@ void rawFile::calMinMax(TYPE t)
 	}
 	minV = MM.first;
 	maxV = MM.second;
+}
+
+void rawFile::dataLP(std::vector<float>& bufferLP)
+{
+	size_t N = numPoints();
+	bufferLP.resize(N, 0.0);
+	switch (type)
+	{
+	case TYPE::NONE:
+		bufferLP.resize(0);
+		break;
+	case TYPE::UCHAR:
+	{
+		auto *puc = static_cast<unsigned char*>(d);
+		std::copy(puc, puc + N, bufferLP.begin());
+	}
+		break;
+	case TYPE::CHAR:
+	{
+		auto *pc = static_cast<char*>(d);
+		std::copy(pc, pc + N, bufferLP.begin());
+	}
+		break;
+	case TYPE::USHORT:
+	{
+		auto *pus = static_cast<unsigned short*>(d);
+		std::copy(pus, pus + N, bufferLP.begin());
+	}
+		break;
+	case TYPE::SHORT:
+	{
+		auto *ps = static_cast<short*>(d);
+		std::copy(ps, ps + N, bufferLP.begin());
+	}
+		break;
+	case TYPE::INT:
+	{
+		auto *pi = static_cast<int*>(d);
+		std::copy(pi, pi + N, bufferLP.begin());
+	}
+		break;
+	case TYPE::UINT:
+	{
+		auto *pui = static_cast<unsigned int*>(d);
+		std::copy(pui, pui + N, bufferLP.begin());
+	}
+		break;
+	case TYPE::FLOAT:
+	{
+		auto *pf = static_cast<float*>(d);
+		std::copy(pf, pf + N, bufferLP.begin());
+	}
+		break;
+	case TYPE::LONG:
+	{
+		auto *pl = static_cast<long*>(d);
+		std::copy(pl, pl + N, bufferLP.begin());
+	}
+		break;
+	case TYPE::ULONG:
+	{
+		auto *pul = static_cast<unsigned long*>(d);
+		std::copy(pul, pul + N, bufferLP.begin());
+	}
+		break;
+	case TYPE::LLONG:
+	{
+		auto *pll = static_cast<long long*>(d);
+		std::copy(pll, pll + N, bufferLP.begin());
+	}
+		break;
+	case TYPE::ULLONG:
+	{
+		auto *pull = static_cast<unsigned long long*>(d);
+		std::copy(pull, pull + N, bufferLP.begin());
+	}
+		break;
+	case TYPE::DOUBLE:
+	{
+		auto *pd = static_cast<double*>(d);
+		std::copy(pd, pd + N, bufferLP.begin());
+	}
+		break;
+	default:
+		break;
+	}
 }

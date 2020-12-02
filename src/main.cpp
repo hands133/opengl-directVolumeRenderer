@@ -68,15 +68,16 @@ unsigned char transFunctionub[] = {
 // 	0.865003, 0.865003, 0.865003, 0.6,
 // 	0.705882, 0.0156863, 0.14902, 1.0
 // };
+
+
 float transFunctionf[] = {
-	// 1.0, 1.0, 1.0, 0.00195,
 	1.0, 1.0, 1.0, 0.0,
-	0.0, 0.0, 1.0, 0.16666666,
-	0.0, 1.0, 1.0, 0.33333333,
+	0.0, 0.0, 1.0, 1.0 / 6.0,
+	0.0, 1.0, 1.0, 2.0 / 6.0,
 	0.0, 1.0, 0.0, 0.5,
-	1.0, 1.0, 0.0, 0.66666666,
-	1.0, 0.0, 0.0, 0.83333333,
-	0.878431, 0.0, 1.0
+	1.0, 1.0, 0.0, 4.0 / 6.0,
+	1.0, 0.0, 0.0, 5.0 / 6.0,
+	0.878431, 0.0, 1.0, 1.0
 };
 
 glm::fvec4 bgColor = glm::fvec4(
@@ -85,7 +86,7 @@ glm::fvec4 bgColor = glm::fvec4(
 	110.0 / 255.0,
 	255.0 / 255.0);
 
-int main()
+int main(int argc, char* argv[])
 {
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -114,7 +115,6 @@ int main()
 
 	// camera
 	Camera camera(glm::vec3(0.0, 0.0, 3.0));
-	// Camera camera(glm::vec3(0.0, 0.0, 2.5));
 
 	glm::mat4 model = glm::mat4(1.0f);
 	model = glm::rotate(model, glm::radians(45.0f), glm::vec3(1.0, 0.0, 0.0));
@@ -182,15 +182,25 @@ int main()
 
 	// texture : volume
 	rawFile rawfile;
-	rawfile.read("C:\\Users\\hands33\\Desktop\\Bachelor\\Computer Graphics\\project\\src\\proj1\\data_256x256x256_float.dat");
+	rawfile.read("..\\..\\datatest\\silicium_98_34_34_uint8.dat");
+	// rawfile.read("..\\..\\datatest\\tooth_103x94x161_uint8.dat");
+	// rawfile.read("..\\..\\datatest\\data_256x256x256_float.dat");
+	
+
+	std::cout << "work directory : " << argv[0] << std::endl;
+
 	std::cout << rawfile;
 
 	Texture texVolume("volume", GL_TEXTURE_3D, 0, GL_CLAMP_TO_EDGE, GL_LINEAR, true);
 
+	// only to convert integer-type to float
 	if (rawfile.data())
 	{
 		auto res = rawfile.resolution();
-		texVolume.setData(GL_R32F, res, 0, GL_RED, GL_FLOAT, rawfile.data());
+		std::vector<float> buffer;
+		rawfile.dataLP(buffer);
+		texVolume.setData(GL_R32F, res, 0, GL_RED, GL_FLOAT, &buffer[0]);
+		// texVolume.setData(GL_R32F, res, 0, GL_RED, GL_FLOAT, rawfile.data());
 	}
 	else
 	{
@@ -201,10 +211,10 @@ int main()
 	Texture texTransFunc("transfer function", GL_TEXTURE_1D, 0, GL_CLAMP_TO_EDGE, GL_LINEAR, true);
 
 	texTransFunc.setData(GL_RGBA, glm::ivec3(7, 0, 0), 0, GL_RGBA, GL_FLOAT, transFunctionf);
-	//glTexImage1D(GL_TEXTURE_1D, 0, GL_RGBA, 3, 0, GL_RGBA, GL_UNSIGNED_BYTE, transFunctionub);
+	
 	Shader shaderIn("../shaders/rayIn_vert.glsl", "../shaders/rayIn_frag.glsl");
 
-	Shader rayCasting("../shaders/rayCasting_vert.glsl", "../shaders/rayCasting_frag_fixPoints.glsl");
+	Shader rayCasting("../shaders/rayCasting_vert.glsl", "../shaders/rayCasting_frag.glsl");
 	
 	rayCasting.use();
 	rayCasting.setFloat("SCR_WIDTH", SCR_WIDTH);
@@ -229,7 +239,7 @@ int main()
 
 		glClearColor(bgColor.x, bgColor.y, bgColor.z, bgColor.w);
 
-		model = glm::rotate(model, glm::radians(2.0f), glm::vec3(0.0f, 1.0f, 0.0));
+		model = glm::rotate(model, glm::radians(0.3f), glm::vec3(0.0f, 1.0f, 0.0));
 
 		
 		shaderIn.use();
