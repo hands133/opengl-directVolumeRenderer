@@ -25,7 +25,7 @@ void main()
 
     if(cdIn == cdOut)   discard;
 
-    float stepSize =  0.001f;
+    float stepSize =  0.0005f;
     
 	vec3 currentPos = cdIn;
 	vec3 color = vec3(0.0, 0.0, 0.0);
@@ -43,7 +43,7 @@ void main()
 
         if(tmpColor.a > 0.0)
         {
-            tmpColor.a = 1.0 - pow(1.0 - tmpColor.a, stepSize * 255.0f);
+            tmpColor.a = 1.0 - pow(1.0 - tmpColor.a, stepSize * 20.0f);
             color += (1.0 - alpha) * tmpColor.rgb * tmpColor.a;
             alpha += (1.0 - alpha) * tmpColor.a;
         }

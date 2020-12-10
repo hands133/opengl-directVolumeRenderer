@@ -16,7 +16,7 @@
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
-
+void updateCubeVerts(glm::uvec3& res);
 // global data and numerics
 // const unsigned int SCR_WIDTH = 1280;
 // const unsigned int SCR_HEIGHT = 720;
@@ -24,22 +24,15 @@ void processInput(GLFWwindow *window);
 const unsigned int SCR_WIDTH = 600;
 const unsigned int SCR_HEIGHT = 600;
 
-float xmin = -0.5;
-float xmax = 0.5;
-float ymin = -0.5;
-float ymax = 0.5;
-float zmin = -0.5;
-float zmax = 0.5;
-
-float cubeVerts[] = {
-	xmin, ymin, zmin, 0.0, 0.0, 0.0,
-	xmax, ymin, zmin, 1.0, 0.0, 0.0,
-	xmax, ymax, zmin, 1.0, 1.0, 0.0,
-	xmin, ymax, zmin, 0.0, 1.0, 0.0,
-	xmin, ymin, zmax, 0.0, 0.0, 1.0,
-	xmax, ymin, zmax, 1.0, 0.0, 1.0,
-	xmax, ymax, zmax, 1.0, 1.0, 1.0,
-	xmin, ymax, zmax, 0.0, 1.0, 1.0
+float cubeVerts[48] = {
+	-0.5, -0.5, -0.5, 0.0, 0.0, 0.0,
+	 0.5, -0.5, -0.5, 1.0, 0.0, 0.0,
+	 0.5,  0.5, -0.5, 1.0, 1.0, 0.0,
+	-0.5,  0.5, -0.5, 0.0, 1.0, 0.0,
+	-0.5, -0.5,  0.5, 0.0, 0.0, 1.0,
+	 0.5, -0.5,  0.5, 1.0, 0.0, 1.0,
+	 0.5,  0.5,  0.5, 1.0, 1.0, 1.0,
+	-0.5,  0.5,  0.5, 0.0, 1.0, 1.0
 };
 
 unsigned int indices[] = {
@@ -121,6 +114,18 @@ int main(int argc, char* argv[])
 	glm::mat4 view = camera.GetViewMatrix();
 	glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
 
+	// texture : volume
+	rawFile rawfile;
+	rawfile.read("..\\..\\datatest\\silicium_98_34_34_uint8.dat");
+	// rawfile.read("..\\..\\datatest\\tooth_103x94x161_uint8.dat");
+	// rawfile.read("..\\..\\datatest\\data_256x256x256_float.dat");
+	
+	std::cout << rawfile;
+
+	auto rawRes = rawfile.resolution();
+	updateCubeVerts(rawRes);
+
+
 	// VAO, VBO, EBO
 	// send vertex point data to graphic pipeline : vertex shader
 	unsigned int VAO;
@@ -180,16 +185,6 @@ int main(int argc, char* argv[])
 
 	projOutFBuffer.checkStatus();
 
-	// texture : volume
-	rawFile rawfile;
-	rawfile.read("..\\..\\datatest\\silicium_98_34_34_uint8.dat");
-	// rawfile.read("..\\..\\datatest\\tooth_103x94x161_uint8.dat");
-	// rawfile.read("..\\..\\datatest\\data_256x256x256_float.dat");
-	
-
-	std::cout << "work directory : " << argv[0] << std::endl;
-
-	std::cout << rawfile;
 
 	Texture texVolume("volume", GL_TEXTURE_3D, 0, GL_CLAMP_TO_EDGE, GL_LINEAR, true);
 
@@ -200,7 +195,6 @@ int main(int argc, char* argv[])
 		std::vector<float> buffer;
 		rawfile.dataLP(buffer);
 		texVolume.setData(GL_R32F, res, 0, GL_RED, GL_FLOAT, &buffer[0]);
-		// texVolume.setData(GL_R32F, res, 0, GL_RED, GL_FLOAT, rawfile.data());
 	}
 	else
 	{
@@ -236,12 +230,10 @@ int main(int argc, char* argv[])
 		processInput(window);
 
 		glDisable(GL_BLEND);
-
 		glClearColor(bgColor.x, bgColor.y, bgColor.z, bgColor.w);
 
 		model = glm::rotate(model, glm::radians(0.3f), glm::vec3(0.0f, 1.0f, 0.0));
 
-		
 		shaderIn.use();
 		shaderIn.setMat4("model", model);
 		shaderIn.setMat4("view", view);
@@ -333,4 +325,35 @@ void processInput(GLFWwindow *window)
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
 	glViewport(0, 0, width, height);
+}
+
+void updateCubeVerts(glm::uvec3& res)
+{
+	float stdLength = 0.7;
+
+	int maxAxis = std::max({res.x, res.y, res.z});
+	float xScale = 1.0 * res.x / maxAxis;
+	float yScale = 1.0 * res.y / maxAxis;
+	float zScale = 1.0 * res.z / maxAxis;
+
+	float xmin = -stdLength * xScale;
+	float xmax = stdLength * xScale;
+	float ymin = -stdLength * yScale;
+	float ymax = stdLength * yScale;
+	float zmin = -stdLength * zScale;
+	float zmax = stdLength * zScale;
+
+	float tmpVerts[48] = 
+	{
+		xmin, ymin, zmin, 0.0, 0.0, 0.0,
+		xmax, ymin, zmin, 1.0, 0.0, 0.0,
+		xmax, ymax, zmin, 1.0, 1.0, 0.0,
+		xmin, ymax, zmin, 0.0, 1.0, 0.0,
+		xmin, ymin, zmax, 0.0, 0.0, 1.0,
+		xmax, ymin, zmax, 1.0, 0.0, 1.0,
+		xmax, ymax, zmax, 1.0, 1.0, 1.0,
+		xmin, ymax, zmax, 0.0, 1.0, 1.0
+	};
+
+	std::copy(tmpVerts, tmpVerts + 48, cubeVerts);
 }
