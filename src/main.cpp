@@ -2,6 +2,7 @@
 #include <glfw3.h>
 
 #include <iostream>
+#include <chrono>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -14,12 +15,22 @@
 
 // call back functions
 
-void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
+void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+void mouse_callback(GLFWwindow *window, double xpos, double ypos);
+void scroll_callback(GLFWwindow *window, double xoffset, double yoffset);
+void click_callback(GLFWwindow *window, int button, int action, int mods);
+
 void updateCubeVerts(glm::uvec3& res);
 // global data and numerics
+// const unsigned int SCR_WIDTH = 1920;
+// const unsigned int SCR_HEIGHT = 1080;
+
 // const unsigned int SCR_WIDTH = 1280;
 // const unsigned int SCR_HEIGHT = 720;
+
+// const unsigned int SCR_WIDTH = 800;
+// const unsigned int SCR_HEIGHT = 800;
 
 const unsigned int SCR_WIDTH = 600;
 const unsigned int SCR_HEIGHT = 600;
@@ -50,24 +61,11 @@ unsigned int indices[] = {
 	3, 2, 1
 };
 
-unsigned char transFunctionub[] = {
-	59, 74, 192, 0,
-	221, 221, 221, 128,
-	180, 4, 38, 255
-};
-
-// float transFunctionf[] = {
-// 	0.231371, 0.290839, 0.752941, 0.0,
-// 	0.865003, 0.865003, 0.865003, 0.6,
-// 	0.705882, 0.0156863, 0.14902, 1.0
-// };
-
-
 float transFunctionf[] = {
-	1.0, 1.0, 1.0, 0.0,
+	1.0, 1.0, 1.0, 0.0 / 6.0,
 	0.0, 0.0, 1.0, 1.0 / 6.0,
 	0.0, 1.0, 1.0, 2.0 / 6.0,
-	0.0, 1.0, 0.0, 0.5,
+	0.0, 1.0, 0.0, 3.0 / 6.0,
 	1.0, 1.0, 0.0, 4.0 / 6.0,
 	1.0, 0.0, 0.0, 5.0 / 6.0,
 	0.878431, 0.0, 1.0, 1.0
@@ -78,6 +76,23 @@ glm::fvec4 bgColor = glm::fvec4(
 	87.0 / 255.0,
 	110.0 / 255.0,
 	255.0 / 255.0);
+
+// camera
+Camera camera(glm::vec3(0.0, 0.0, 3.0));
+
+bool mouseClicked = false;
+
+// drag management
+glm::mat4 drag = glm::mat4(1.0);
+glm::mat4 model = glm::mat4(1.0);
+
+glm::fvec2 pressPoint = glm::fvec2(0.0);
+glm::fvec2 currentPoint = glm::fvec2(0.0);
+
+glm::fvec3 V1;
+glm::fvec3 V2;
+
+double x, y;	// mouse position
 
 int main(int argc, char* argv[])
 {
@@ -93,38 +108,39 @@ int main(int argc, char* argv[])
 		glfwTerminate();
 		return -1;
 	}
+	// register function here
 	glfwMakeContextCurrent(window);
+	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+	glfwSetCursorPosCallback(window, mouse_callback);
+	glfwSetMouseButtonCallback(window, click_callback);
+	glfwSetScrollCallback(window, scroll_callback);
 
 	// glad: load all OpenGL function pointers
 	// ---------------------------------------
-	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+	if(0 == gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress)))
 	{
 		std::cout << "Failed to initialize GLAD" << std::endl;
 		return -1;
 	}
 
 	glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
-	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
-	// camera
-	Camera camera(glm::vec3(0.0, 0.0, 3.0));
-
-	glm::mat4 model = glm::mat4(1.0f);
+	model = glm::mat4(1.0f);
 	model = glm::rotate(model, glm::radians(45.0f), glm::vec3(1.0, 0.0, 0.0));
 	glm::mat4 view = camera.GetViewMatrix();
-	glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+	glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.01f, 100.0f);
 
 	// texture : volume
 	rawFile rawfile;
 	rawfile.read("..\\..\\datatest\\silicium_98_34_34_uint8.dat");
 	// rawfile.read("..\\..\\datatest\\tooth_103x94x161_uint8.dat");
+	// rawfile.read("..\\..\\datatest\\fuel_64x64x64_uint8.dat");
 	// rawfile.read("..\\..\\datatest\\data_256x256x256_float.dat");
 	
 	std::cout << rawfile;
 
 	auto rawRes = rawfile.resolution();
 	updateCubeVerts(rawRes);
-
 
 	// VAO, VBO, EBO
 	// send vertex point data to graphic pipeline : vertex shader
@@ -160,7 +176,7 @@ int main(int argc, char* argv[])
 	frameBuffer projInFBuffer("project_intro");
 	// color texture (store intro point)
 	Texture projInTexture("project_intro::color", GL_TEXTURE_2D, 0, GL_CLAMP_TO_EDGE, GL_LINEAR);
-	projInTexture.setData(GL_RGBA, glm::ivec3(SCR_WIDTH, SCR_HEIGHT, 0), 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	projInTexture.setData(GL_RGBA32F, glm::ivec3(SCR_WIDTH, SCR_HEIGHT, 0), 0, GL_RGBA, GL_FLOAT, NULL);
 	// depth texture (store depth)
 	Texture projInDepthTexture("proj_intro::depth", GL_TEXTURE_2D, 0, GL_CLAMP_TO_EDGE, GL_LINEAR);
 	projInDepthTexture.setData(GL_DEPTH_COMPONENT32F, glm::ivec3(SCR_WIDTH, SCR_HEIGHT, 0), 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
@@ -175,7 +191,7 @@ int main(int argc, char* argv[])
 
 	// color texture (store intro point)
 	Texture projOutTexture("project_outro::color", GL_TEXTURE_2D, 0, GL_CLAMP_TO_EDGE, GL_LINEAR);
-	projOutTexture.setData(GL_RGBA, glm::ivec3(SCR_WIDTH, SCR_HEIGHT, 0), 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	projOutTexture.setData(GL_RGBA32F, glm::ivec3(SCR_WIDTH, SCR_HEIGHT, 0), 0, GL_RGBA, GL_FLOAT, NULL);
 	// depth texture (store depth)
 	Texture projOutDepthTexture("proj_outro::depth", GL_TEXTURE_2D, 0, GL_CLAMP_TO_EDGE, GL_LINEAR);
 	projOutDepthTexture.setData(GL_DEPTH_COMPONENT32F, glm::ivec3(SCR_WIDTH, SCR_HEIGHT, 0), 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
@@ -203,7 +219,6 @@ int main(int argc, char* argv[])
 	}
 
 	Texture texTransFunc("transfer function", GL_TEXTURE_1D, 0, GL_CLAMP_TO_EDGE, GL_LINEAR, true);
-
 	texTransFunc.setData(GL_RGBA, glm::ivec3(7, 0, 0), 0, GL_RGBA, GL_FLOAT, transFunctionf);
 	
 	Shader shaderIn("../shaders/rayIn_vert.glsl", "../shaders/rayIn_frag.glsl");
@@ -213,29 +228,31 @@ int main(int argc, char* argv[])
 	rayCasting.use();
 	rayCasting.setFloat("SCR_WIDTH", SCR_WIDTH);
 	rayCasting.setFloat("SCR_HEIGHT", SCR_HEIGHT);
-	rayCasting.setInt("coordIn", projInTexture.getID() - 1);
-	rayCasting.setInt("coordOut", projOutTexture.getID() - 1);
-	rayCasting.setInt("volume", texVolume.getID() - 1);
-	rayCasting.setInt("tFunc", texTransFunc.getID() - 1);
+	rayCasting.setTexture("coordIn", projInTexture);
+	rayCasting.setTexture("coordOut", projOutTexture);
+	rayCasting.setTexture("volume", texVolume);
+	rayCasting.setTexture("tFunc", texTransFunc);
 
 	auto rangeSpan = rawfile.spanValue();
 	rayCasting.setFloat("vMin", rangeSpan.x);
 	rayCasting.setFloat("vMax", rangeSpan.y);
 
 	glEnable(GL_CULL_FACE);
-
+	
+	uint64_t count = 1;
 	while (!glfwWindowShouldClose(window))
 	{
-
+		auto start = std::chrono::steady_clock::now();
 		processInput(window);
+
+		view = camera.GetViewMatrix();
+		projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.01f, 100.0f);
 
 		glDisable(GL_BLEND);
 		glClearColor(bgColor.x, bgColor.y, bgColor.z, bgColor.w);
 
-		model = glm::rotate(model, glm::radians(0.3f), glm::vec3(0.0f, 1.0f, 0.0));
-
 		shaderIn.use();
-		shaderIn.setMat4("model", model);
+		shaderIn.setMat4("model", drag * model);
 		shaderIn.setMat4("view", view);
 		shaderIn.setMat4("projection", projection);
 
@@ -274,7 +291,7 @@ int main(int argc, char* argv[])
 
 		// render to screen
 		rayCasting.use();
-		rayCasting.setMat4("model", model);
+		rayCasting.setMat4("model", drag * model);
 		rayCasting.setMat4("view", view);
 		rayCasting.setMat4("projection", projection);
 
@@ -305,6 +322,16 @@ int main(int argc, char* argv[])
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
+		auto end = std::chrono::steady_clock::now();
+		if(count % 5 == 0)
+		{
+			auto tt = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+
+			float fps = 1000 / (1.0 * tt.count());
+
+			std::cout << "Duration = " << tt.count() << " ms, FPS = " << fps << "\r";
+		}
+		++count;
 	}
 
 	glDeleteBuffers(1, &VAO);
@@ -325,6 +352,73 @@ void processInput(GLFWwindow *window)
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
 	glViewport(0, 0, width, height);
+}
+
+inline glm::fvec2 screen2Image(double xpos, double ypos)
+{
+	glm::fvec2 imageCoord(
+		2 * xpos / SCR_WIDTH - 1.0,
+		-2 * ypos / SCR_HEIGHT + 1.0);
+
+	return imageCoord;
+}
+
+inline float z(glm::fvec2 pos)
+{
+	float d = pos.x * pos.x + pos.y * pos.y;
+	float r = 1.0;
+
+	if (d < r / 2.0)	return std::sqrt(r * r - d);
+	else				return r / 2.0 / std::sqrt(d);
+}
+
+void mouse_callback(GLFWwindow* window, double xpos, double ypos)
+{
+	auto cursor = screen2Image(xpos, ypos);
+	x = cursor.x;
+	y = cursor.y;
+	if (mouseClicked)
+	{
+		currentPoint = screen2Image(xpos, ypos);
+		glm::fvec2 dir = glm::normalize(currentPoint - pressPoint);
+		
+		V2 = glm::fvec3(currentPoint.x, currentPoint.y, z(currentPoint));
+		V2 = glm::normalize(V2);
+
+		glm::fvec3 N = glm::cross(V1, V2);
+		float theta = std::acos(glm::dot(V1, V2));
+
+		drag = glm::rotate(glm::mat4(1.0), theta, N);
+	}
+}
+
+void click_callback(GLFWwindow* window, int button, int action, int mods)
+{
+	if (action == GLFW_PRESS)
+	{
+		if (button == GLFW_MOUSE_BUTTON_1)
+		{
+			mouseClicked = true;
+			pressPoint.x = x;
+			pressPoint.y = y;
+			V1 = glm::fvec3(pressPoint.x, pressPoint.y, z(pressPoint));
+			V1 = glm::normalize(V1);
+		}
+	}
+	else if (action == GLFW_RELEASE)
+	{
+		if (button == GLFW_MOUSE_BUTTON_1)
+		{
+			mouseClicked = false;
+			model = drag * model;
+			drag = glm::mat4(1.0);
+		}
+	}
+}
+
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
+{
+	camera.ProcessMouseScroll(yoffset);
 }
 
 void updateCubeVerts(glm::uvec3& res)

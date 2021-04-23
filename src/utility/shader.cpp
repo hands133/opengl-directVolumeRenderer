@@ -1,4 +1,5 @@
 #include "shader.h"
+#include "texture.h"
 
 Shader::Shader(const GLchar *vertexPath, const GLchar *fragmentPath)
 {
@@ -105,6 +106,11 @@ void Shader::setVec3(const std::string &name, const glm::vec3 &vec) const
 void Shader::setMat4(const std::string &name, const glm::mat4x4 &trans) const
 {
 	glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, glm::value_ptr(trans));
+}
+
+void Shader::setTexture(const std::string &name, const Texture& tex) const
+{
+	this->setInt(name, tex.getID() - 1);
 }
 
 void Shader::checkCompileErrors(unsigned int shader, SHADER_TYPE type)

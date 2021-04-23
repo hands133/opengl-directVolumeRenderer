@@ -11,6 +11,7 @@
 #include <sstream>
 #include <iostream>
 
+class Texture;
 class Shader
 {
 public:
@@ -19,14 +20,15 @@ public:
 	~Shader() { destroy(); }
 	void destroy() { glDeleteProgram(ID); }
 	unsigned int progID() { return ID; }
-	void use();             // Ê¹ÓÃ/¼¤»î³ÌÐò
-	// uniform ¹¤¾ßº¯Êý
+	void use();             // Ê¹ï¿½ï¿½/ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+	// uniform ï¿½ï¿½ï¿½ßºï¿½ï¿½ï¿½
 	void setBool(const std::string &name, bool value) const;
 	void setInt(const std::string &name, int value) const;
 	void setFloat(const std::string &name, float value) const;
 	void setVec3(const std::string &name, float x, float y, float z) const;
 	void setVec3(const std::string &name, const glm::vec3 &vec) const;
 	void setMat4(const std::string &name, const glm::mat4x4 &trans) const;
+	void setTexture(const std::string &name, const Texture& tex) const;
 
 private:
 	unsigned int ID;        // shader ID

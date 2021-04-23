@@ -23,16 +23,16 @@ void main()
 	vec3 cdIn = texture(coordIn, coordOnScreen).xyz;
 	vec3 cdOut = texture(coordOut, coordOnScreen).xyz;
 
-    if(cdIn == cdOut)   discard;
+    float stepSize =  0.003f;
 
-    float stepSize =  0.0005f;
+    vec3 dir = cdOut - cdIn;
+    if (length(dir) < stepSize) discard;
     
 	vec3 currentPos = cdIn;
 	vec3 color = vec3(0.0, 0.0, 0.0);
 	float alpha = 0.0;
     float disAccu = 0.0;
 
-    vec3 dir = cdOut - cdIn;
     vec3 deltaDir = dir * (stepSize / length(dir));
     float numSamp = length(dir) / stepSize;
     
@@ -41,9 +41,10 @@ void main()
         float v = texture(volume, currentPos).r;
         vec4 tmpColor = texture(tFunc, (v - vMin)/ (vMax - vMin));
 
+        tmpColor.a *= 0.3;
         if(tmpColor.a > 0.0)
         {
-            tmpColor.a = 1.0 - pow(1.0 - tmpColor.a, stepSize * 20.0f);
+            tmpColor.a = 1.0 - pow(1.0 - tmpColor.a, stepSize * 200.0f);
             color += (1.0 - alpha) * tmpColor.rgb * tmpColor.a;
             alpha += (1.0 - alpha) * tmpColor.a;
         }
@@ -51,10 +52,13 @@ void main()
         currentPos += deltaDir;
         disAccu += stepSize;
 
-        if(disAccu > length(dir))   break;
-        else if(alpha > 1.0)
+        if(disAccu > length(dir))
         {
-            alpha = 1.0;
+            if(alpha > 1.0)
+            {
+                alpha = 1.0;
+                break;
+            }
             break;
         }
     }

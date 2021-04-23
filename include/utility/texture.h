@@ -20,10 +20,10 @@ public:
     void setData(GLint internalFormat, glm::ivec3 coverSpan, GLint border, GLenum format, GLenum type, const void *data);
 
     // ADT method
-    unsigned int getID() { return ID; }
-    GLenum getDim() { return texDim; }
-    unsigned int getLvl() { return level; }
-    std::string getDescrip() { return descrip; }
+    unsigned int getID() const { return ID; }
+    GLenum getDim() const { return texDim; }
+    unsigned int getLvl() const { return level; }
+    std::string getDescrip() const { return descrip; }
 private:
     void initParam(GLenum borderParam = GL_CLAMP_TO_EDGE, GLenum filterParam = GL_LINEAR, GLboolean genMipmap = false);
 

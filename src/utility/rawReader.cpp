@@ -5,7 +5,6 @@ rawFile::rawFile()
 	d = nullptr;
 	for (int i = 0; i < nameType.size(); ++i)
 		str2Enum[nameType[i]] = typeType[i];
-	reset();
 }
 
 size_t rawFile::numPoints() const
@@ -66,7 +65,6 @@ bool rawFile::readDatFile(const std::string& datPath)
 	{
 		datFile.close();
 		std::cerr << "[ERROR] Invalid type of word 'Format' : " << item << endl;
-		reset();
 		return false;
 	}
 	type = iter->second;
@@ -116,7 +114,6 @@ bool rawFile::memoryAlloc()
 	catch (const std::exception& e)
 	{
 		std::cerr << e.what() << '\n';
-		reset();
 		return false;
 	}
 	return true;
@@ -129,7 +126,6 @@ bool rawFile::readRawFile(const std::string& rawPath)
 	{
 		std::cerr << "[ERROR] Read from file " << rawPath << " failed!" << endl;
 		file.close();
-		reset();
 		return false;
 	}
 	try
@@ -141,21 +137,10 @@ bool rawFile::readRawFile(const std::string& rawPath)
 	{
 		std::cerr << e.what() << '\n';
 		file.close();
-		reset();
 		return false;
 	}
 	file.close();
 	return true;
-}
-
-void rawFile::reset()
-{
-	info.rawPath = info.tagPath = "";
-	info.resolution = { 0, 0, 0 };
-	info.sliceThick = { 0.0, 0.0, 0.0 };
-	minV = maxV = 0.0;
-	if (d != nullptr)    free(d);
-	d = nullptr;
 }
 
 std::ostream& rawFile::operator<<(std::ostream& out) const
