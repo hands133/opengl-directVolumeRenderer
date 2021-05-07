@@ -23,7 +23,7 @@ void main()
 	vec3 cdIn = texture(coordIn, coordOnScreen).xyz;
 	vec3 cdOut = texture(coordOut, coordOnScreen).xyz;
 
-    float stepSize =  0.003f;
+    float stepSize =  0.001f;
 
     vec3 dir = cdOut - cdIn;
     if (length(dir) < stepSize) discard;

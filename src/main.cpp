@@ -12,6 +12,10 @@
 #include "camera.h"
 #include "frameBuffer.h"
 #include "texture.h"
+#include "util.h"
+
+const float PI_F = glm::pi<float>();
+const double PI_D = glm::pi<double>();
 
 // call back functions
 
@@ -29,11 +33,14 @@ void updateCubeVerts(glm::uvec3& res);
 // const unsigned int SCR_WIDTH = 1280;
 // const unsigned int SCR_HEIGHT = 720;
 
-// const unsigned int SCR_WIDTH = 800;
-// const unsigned int SCR_HEIGHT = 800;
+// const unsigned int SCR_WIDTH = 1000;
+// const unsigned int SCR_HEIGHT = 1000;
 
-const unsigned int SCR_WIDTH = 600;
-const unsigned int SCR_HEIGHT = 600;
+const unsigned int SCR_WIDTH = 800;
+const unsigned int SCR_HEIGHT = 800;
+
+// const unsigned int SCR_WIDTH = 600;
+// const unsigned int SCR_HEIGHT = 600;
 
 float cubeVerts[48] = {
 	-0.5, -0.5, -0.5, 0.0, 0.0, 0.0,
@@ -132,10 +139,12 @@ int main(int argc, char* argv[])
 
 	// texture : volume
 	rawFile rawfile;
-	rawfile.read("..\\..\\datatest\\silicium_98_34_34_uint8.dat");
+	// rawfile.read("..\\..\\datatest\\silicium_98_34_34_uint8.dat");
 	// rawfile.read("..\\..\\datatest\\tooth_103x94x161_uint8.dat");
 	// rawfile.read("..\\..\\datatest\\fuel_64x64x64_uint8.dat");
 	// rawfile.read("..\\..\\datatest\\data_256x256x256_float.dat");
+	rawfile.read("..\\..\\datatest\\aneurism_256x256x256_uint8.dat");
+	// rawfile.read("..\\..\\datatest\\bonsai_256x256x256_uint8.dat");
 	
 	std::cout << rawfile;
 
@@ -372,23 +381,95 @@ inline float z(glm::fvec2 pos)
 	else				return r / 2.0 / std::sqrt(d);
 }
 
+inline float f(float v)
+{
+	if (v <= 0.0)	return 0.0;
+
+	return std::min(v, 1.0f) * glm::pi<float>() / 2.0;
+}
+
+glm::mat4 rotate_method1(double xpos, double ypos)
+{
+	float theta = 0.0f;
+	glm::fvec3 rotateAxis = glm::fvec3(1.0);
+
+	currentPoint = screen2Image(xpos, ypos);
+	glm::fvec2 dir = glm::normalize(currentPoint - pressPoint);
+	
+	V2 = glm::fvec3(currentPoint.x, currentPoint.y, z(currentPoint));
+	V2 = glm::normalize(V2);
+
+	theta = std::acos(glm::dot(V1, V2));
+	rotateAxis = glm::cross(V1, V2);
+
+	return glm::rotate(glm::mat4(1.0), theta, rotateAxis);
+}
+
+glm::mat4 rotate_CHEN(double xpos, double ypos)
+{
+	// step1. pa
+	float phi = 0.0;
+	float tau = 0.0;
+
+	float theta = 0.0f;
+	glm::fvec3 rotateAxis = glm::fvec3(1.0);
+	glm::fvec2 d = glm::fvec2(0.0);
+
+	currentPoint = screen2Image(xpos, ypos);
+
+	glm::fvec2 pa = pressPoint;
+	glm::fvec2 pc = currentPoint;
+
+	d = pressPoint - currentPoint;
+
+	// phi = util::calSignedAngle(glm::fvec2(1.0, 0.0), pa);
+	phi = glm::atan(pa.y / pa.x);
+	if (pa.x == 0.0)
+		phi = 0.0;
+	tau = util::calSignedAngle(pa, pc);
+
+	glm::fvec3 unitRotateAxis = {
+		- glm::sin(tau),
+		glm::cos(tau),
+		0.0f };
+
+	// case 1. pa = o(0.0, 0.0)
+	if (pa == glm::fvec2(0.0))
+		rotateAxis = unitRotateAxis;
+	// case 2. pa on x-axis
+	if (pa.y == 0.0)
+		{
+
+		}
+	// case 3. pa is arbitray
+	float omega = f(glm::length(pa) / 1.0f);
+	auto rotate_z_phi = glm::rotate(glm::mat4(1.0), phi, glm::fvec3(0.0, 0.0, 1.0));
+	auto rotate_y_omega = glm::rotate(glm::mat4(1.0), phi, glm::fvec3(0.0, 1.0, 0.0));
+
+	glm::fvec4 unitRAV4 = {
+		unitRotateAxis.x,
+		unitRotateAxis.y,
+		unitRotateAxis.z,
+		1.0f };
+
+	rotateAxis = rotate_z_phi * rotate_y_omega * unitRAV4;
+
+	theta = PI_F / 2.0 * glm::length(d) / 1.0 * (
+		1.0 - (1.0 - 0.2 / PI_F) * 2.0 * omega / PI_F * 
+		(1.0 - glm::abs(glm::cos(tau))));
+
+	return glm::rotate(glm::mat4(1.0), theta, rotateAxis);
+}
+
 void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 {
-	auto cursor = screen2Image(xpos, ypos);
-	x = cursor.x;
-	y = cursor.y;
+	auto cursor2Image = screen2Image(xpos, ypos);
+	x = cursor2Image.x;
+	y = cursor2Image.y;
 	if (mouseClicked)
 	{
-		currentPoint = screen2Image(xpos, ypos);
-		glm::fvec2 dir = glm::normalize(currentPoint - pressPoint);
-		
-		V2 = glm::fvec3(currentPoint.x, currentPoint.y, z(currentPoint));
-		V2 = glm::normalize(V2);
-
-		glm::fvec3 N = glm::cross(V1, V2);
-		float theta = std::acos(glm::dot(V1, V2));
-
-		drag = glm::rotate(glm::mat4(1.0), theta, N);
+		drag = rotate_method1(xpos, ypos);
+		// drag = rotate_CHEN(xpos, ypos);
 	}
 }
 
