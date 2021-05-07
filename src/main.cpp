@@ -143,8 +143,8 @@ int main(int argc, char* argv[])
 	// rawfile.read("..\\..\\datatest\\tooth_103x94x161_uint8.dat");
 	// rawfile.read("..\\..\\datatest\\fuel_64x64x64_uint8.dat");
 	// rawfile.read("..\\..\\datatest\\data_256x256x256_float.dat");
-	rawfile.read("..\\..\\datatest\\aneurism_256x256x256_uint8.dat");
-	// rawfile.read("..\\..\\datatest\\bonsai_256x256x256_uint8.dat");
+	// rawfile.read("..\\..\\datatest\\aneurism_256x256x256_uint8.dat");
+	rawfile.read("..\\..\\datatest\\bonsai_256x256x256_uint8.dat");
 	
 	std::cout << rawfile;
 
