@@ -27,8 +27,8 @@ void click_callback(GLFWwindow *window, int button, int action, int mods);
 
 void updateCubeVerts(glm::uvec3& res);
 // global data and numerics
-// const unsigned int SCR_WIDTH = 1920;
-// const unsigned int SCR_HEIGHT = 1080;
+const unsigned int SCR_WIDTH = 1920;
+const unsigned int SCR_HEIGHT = 1080;
 
 // const unsigned int SCR_WIDTH = 1280;
 // const unsigned int SCR_HEIGHT = 720;
@@ -36,8 +36,8 @@ void updateCubeVerts(glm::uvec3& res);
 // const unsigned int SCR_WIDTH = 1000;
 // const unsigned int SCR_HEIGHT = 1000;
 
-const unsigned int SCR_WIDTH = 800;
-const unsigned int SCR_HEIGHT = 800;
+// const unsigned int SCR_WIDTH = 800;
+// const unsigned int SCR_HEIGHT = 800;
 
 // const unsigned int SCR_WIDTH = 600;
 // const unsigned int SCR_HEIGHT = 600;
