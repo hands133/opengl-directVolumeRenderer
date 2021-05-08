@@ -4,8 +4,6 @@ include/glm
 include/glfw-3.3.2
 include/*.zip
 
-dll
-lib
 .vscode
 
 *.exe
