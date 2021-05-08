@@ -14,8 +14,8 @@ public:
     Texture(const std::string &str, GLenum dim, GLuint lvl = 0, GLenum borderParam = GL_CLAMP_TO_EDGE, GLenum filterParam = GL_LINEAR, GLboolean genMipmap = false);
     ~Texture();
 
-    void bind();
-    void unbind();
+    void bind() const;
+    void unbind() const;
 
     void setData(GLint internalFormat, glm::ivec3 coverSpan, GLint border, GLenum format, GLenum type, const void *data);
 
@@ -24,6 +24,8 @@ public:
     GLenum getDim() const { return texDim; }
     unsigned int getLvl() const { return level; }
     std::string getDescrip() const { return descrip; }
+    void active() const { glActiveTexture(this->texID); }
+
 private:
     void initParam(GLenum borderParam = GL_CLAMP_TO_EDGE, GLenum filterParam = GL_LINEAR, GLboolean genMipmap = false);
 
@@ -31,4 +33,7 @@ private:
     unsigned int ID;
     unsigned int level;
     std::string descrip;
+    GLenum texID;   // GL_TEXTUREX
+
+    static GLenum Init_TEX_ID;
 };

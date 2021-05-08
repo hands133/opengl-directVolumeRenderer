@@ -1,8 +1,12 @@
 #include "texture.h"
 
+GLenum Texture::Init_TEX_ID = GL_TEXTURE0;
+
 Texture::Texture(const std::string &str, GLenum dim, GLuint lvl, GLenum borderParam, GLenum filterParam, GLboolean genMipMap) : texDim(dim), level(lvl), descrip(str)
 {
     glGenTextures(1, &ID);
+    this->texID = Init_TEX_ID;
+    Init_TEX_ID++;
     initParam(borderParam, filterParam, genMipMap);
 }
 
@@ -12,12 +16,12 @@ Texture::~Texture()
     glDeleteTextures(1, &ID);
 }
 
-void Texture::bind()
+void Texture::bind() const
 {
     glBindTexture(texDim, getID());
 }
 
-void Texture::unbind()
+void Texture::unbind() const
 {
     // glBindTexture(GL_TEXTURE_2D, 0);
 }
