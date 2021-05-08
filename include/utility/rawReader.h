@@ -5,7 +5,7 @@
 //          ObjectFileName: xxxxxx.raw
 //          TaggedFilename: ---
 //          Resolution: X Y Z
-//          SliceThickness: ��x ��y ��z
+//          SliceThickness: [x y z]
 //          Format:         UCHAR
 
 #include <iostream>
