@@ -1,7 +1,3 @@
-include/eigen-3.3.7
-include/glad
-include/glm
-include/glfw-3.3.2
 include/*.zip
 
 .vscode
