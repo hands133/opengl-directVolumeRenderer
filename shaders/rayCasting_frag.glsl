@@ -41,10 +41,9 @@ void main()
         float v = texture(volume, currentPos).r;
         vec4 tmpColor = texture(tFunc, (v - vMin)/ (vMax - vMin));
 
-        tmpColor.a *= 0.3;
         if(tmpColor.a > 0.0)
         {
-            tmpColor.a = 1.0 - pow(1.0 - tmpColor.a, stepSize * 200.0f);
+            tmpColor.a = 1.0 - pow(1.0 - tmpColor.a, stepSize * 255.0f);
             color += (1.0 - alpha) * tmpColor.rgb * tmpColor.a;
             alpha += (1.0 - alpha) * tmpColor.a;
         }

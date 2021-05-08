@@ -13,6 +13,7 @@
 #include "frameBuffer.h"
 #include "texture.h"
 #include "util.h"
+#include "ds_pod.h"
 
 const float PI_F = glm::pi<float>();
 const double PI_D = glm::pi<double>();
@@ -42,16 +43,28 @@ const unsigned int SCR_HEIGHT = 800;
 // const unsigned int SCR_WIDTH = 600;
 // const unsigned int SCR_HEIGHT = 600;
 
-float cubeVerts[48] = {
-	-0.5, -0.5, -0.5, 0.0, 0.0, 0.0,
-	 0.5, -0.5, -0.5, 1.0, 0.0, 0.0,
-	 0.5,  0.5, -0.5, 1.0, 1.0, 0.0,
-	-0.5,  0.5, -0.5, 0.0, 1.0, 0.0,
-	-0.5, -0.5,  0.5, 0.0, 0.0, 1.0,
-	 0.5, -0.5,  0.5, 1.0, 0.0, 1.0,
-	 0.5,  0.5,  0.5, 1.0, 1.0, 1.0,
-	-0.5,  0.5,  0.5, 0.0, 1.0, 1.0
+Vertex cubeVerts[8] = 
+{
+	{ { -0.5, -0.5, -0.5 }, { 0.0, 0.0, 0.0, } },
+	{ {  0.5, -0.5, -0.5 }, { 1.0, 0.0, 0.0, } },
+	{ {  0.5,  0.5, -0.5 }, { 1.0, 1.0, 0.0, } },
+	{ { -0.5,  0.5, -0.5 }, { 0.0, 1.0, 0.0, } },
+	{ { -0.5, -0.5,  0.5 }, { 0.0, 0.0, 1.0, } },
+	{ {  0.5, -0.5,  0.5 }, { 1.0, 0.0, 1.0, } },
+	{ {  0.5,  0.5,  0.5 }, { 1.0, 1.0, 1.0, } },
+	{ { -0.5,  0.5,  0.5 }, { 0.0, 1.0, 1.0  } }
 };
+
+// float cubeVerts[48] = {
+// 	-0.5, -0.5, -0.5, 0.0, 0.0, 0.0,
+// 	 0.5, -0.5, -0.5, 1.0, 0.0, 0.0,
+// 	 0.5,  0.5, -0.5, 1.0, 1.0, 0.0,
+// 	-0.5,  0.5, -0.5, 0.0, 1.0, 0.0,
+// 	-0.5, -0.5,  0.5, 0.0, 0.0, 1.0,
+// 	 0.5, -0.5,  0.5, 1.0, 0.0, 1.0,
+// 	 0.5,  0.5,  0.5, 1.0, 1.0, 1.0,
+// 	-0.5,  0.5,  0.5, 0.0, 1.0, 1.0
+// };
 
 unsigned int indices[] = {
 	1, 5, 4,
@@ -138,13 +151,21 @@ int main(int argc, char* argv[])
 	glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.01f, 100.0f);
 
 	// texture : volume
+    std::string datPath = "";
 	rawFile rawfile;
-	// rawfile.read("..\\..\\datatest\\silicium_98_34_34_uint8.dat");
-	// rawfile.read("..\\..\\datatest\\tooth_103x94x161_uint8.dat");
-	// rawfile.read("..\\..\\datatest\\fuel_64x64x64_uint8.dat");
-	// rawfile.read("..\\..\\datatest\\data_256x256x256_float.dat");
-	// rawfile.read("..\\..\\datatest\\aneurism_256x256x256_uint8.dat");
-	rawfile.read("..\\..\\datatest\\bonsai_256x256x256_uint8.dat");
+	// datPath = "..\\..\\datatest\\silicium_98_34_34_uint8.dat";
+	// datPath = "..\\..\\datatest\\tooth_103x94x161_uint8.dat";
+	// datPath = "..\\..\\datatest\\fuel_64x64x64_uint8.dat";
+	// datPath = "..\\..\\datatest\\data_256x256x256_float.dat";
+	// datPath = "..\\..\\datatest\\aneurism_256x256x256_uint8.dat";
+	datPath = "..\\..\\datatest\\bonsai_256x256x256_uint8.dat";
+    bool readSuccess = rawfile.read(datPath);
+
+    if (!readSuccess)
+    {
+        std::cout << "Read file " << datPath << " Failed" << std::endl;
+        return -1;
+    }
 	
 	std::cout << rawfile;
 
@@ -171,10 +192,12 @@ int main(int argc, char* argv[])
 
 	// tell openGL to analyse the vertex data
 	// (location, vertex size(vec3), type, if normalize, stride(step), offset(0))
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), NULL);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE,
+        sizeof(Vertex), reinterpret_cast<void*>(offsetof(Vertex, Vertex::P)));
 	glEnableVertexAttribArray(0);
 
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE,
+        sizeof(Vertex), reinterpret_cast<void*>(offsetof(Vertex, Vertex::T)));
 	glEnableVertexAttribArray(1);
 
 	// render to texture
@@ -210,42 +233,18 @@ int main(int argc, char* argv[])
 
 	projOutFBuffer.checkStatus();
 
+    std::vector<float> buffer;
+    rawfile.dataLP(buffer);
 
 	Texture texVolume("volume", GL_TEXTURE_3D, 0, GL_CLAMP_TO_EDGE, GL_LINEAR, true);
-
-	// only to convert integer-type to float
-	if (rawfile.data())
-	{
-		auto res = rawfile.resolution();
-		std::vector<float> buffer;
-		rawfile.dataLP(buffer);
-		texVolume.setData(GL_R32F, res, 0, GL_RED, GL_FLOAT, &buffer[0]);
-	}
-	else
-	{
-		std::cerr << "Failed to load texture" << std::endl;
-		return -1;
-	}
+    texVolume.setData(GL_RG32F, rawfile.resolution(), 0, GL_RED, GL_FLOAT, buffer.data());
 
 	Texture texTransFunc("transfer function", GL_TEXTURE_1D, 0, GL_CLAMP_TO_EDGE, GL_LINEAR, true);
 	texTransFunc.setData(GL_RGBA, glm::ivec3(7, 0, 0), 0, GL_RGBA, GL_FLOAT, transFunctionf);
 	
-	Shader shaderIn("../shaders/rayIn_vert.glsl", "../shaders/rayIn_frag.glsl");
-
-	Shader rayCasting("../shaders/rayCasting_vert.glsl", "../shaders/rayCasting_frag.glsl");
+	Shader projShader("../shaders/rayIn_vert.glsl", "../shaders/rayIn_frag.glsl");
+	Shader rcShader("../shaders/rayCasting_vert.glsl", "../shaders/rayCasting_frag.glsl");
 	
-	rayCasting.use();
-	rayCasting.setFloat("SCR_WIDTH", SCR_WIDTH);
-	rayCasting.setFloat("SCR_HEIGHT", SCR_HEIGHT);
-	rayCasting.setTexture("coordIn", projInTexture);
-	rayCasting.setTexture("coordOut", projOutTexture);
-	rayCasting.setTexture("volume", texVolume);
-	rayCasting.setTexture("tFunc", texTransFunc);
-
-	auto rangeSpan = rawfile.spanValue();
-	rayCasting.setFloat("vMin", rangeSpan.x);
-	rayCasting.setFloat("vMax", rangeSpan.y);
-
 	glEnable(GL_CULL_FACE);
 	
 	uint64_t count = 1;
@@ -260,10 +259,10 @@ int main(int argc, char* argv[])
 		glDisable(GL_BLEND);
 		glClearColor(bgColor.x, bgColor.y, bgColor.z, bgColor.w);
 
-		shaderIn.use();
-		shaderIn.setMat4("model", drag * model);
-		shaderIn.setMat4("view", view);
-		shaderIn.setMat4("projection", projection);
+		projShader.use();
+		projShader.setMat4("model", drag * model);
+		projShader.setMat4("view", view);
+		projShader.setMat4("projection", projection);
 
 		// render to texture, intro buffer
 		projInFBuffer.bind();
@@ -291,7 +290,7 @@ int main(int argc, char* argv[])
 		glClearDepth(0.0);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		shaderIn.use();
+		projShader.use();
 		glBindVertexArray(VAO);
 
 		glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, NULL);
@@ -299,12 +298,8 @@ int main(int argc, char* argv[])
 		projOutFBuffer.unbind();
 
 		// render to screen
-		rayCasting.use();
-		rayCasting.setMat4("model", drag * model);
-		rayCasting.setMat4("view", view);
-		rayCasting.setMat4("projection", projection);
 
-		glDepthFunc(GL_LESS);
+        glDepthFunc(GL_LESS);
 		glCullFace(GL_BACK);
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_CONSTANT_ALPHA);
@@ -312,18 +307,23 @@ int main(int argc, char* argv[])
 		glClearDepth(1.0);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		rayCasting.use();
-		glActiveTexture(GL_TEXTURE0);
-		projInTexture.bind();
+		rcShader.use();
+		rcShader.setMat4("model", drag * model);
+		rcShader.setMat4("view", view);
+		rcShader.setMat4("projection", projection);
 
-		glActiveTexture(GL_TEXTURE2);
-		projOutTexture.bind();
+        rcShader.setFloat("SCR_WIDTH", SCR_WIDTH);
+        rcShader.setFloat("SCR_HEIGHT", SCR_HEIGHT);
 
-		glActiveTexture(GL_TEXTURE4);
-		texVolume.bind();
+    	auto rangeSpan = rawfile.spanValue();
 
-		glActiveTexture(GL_TEXTURE5);
-		texTransFunc.bind();
+        rcShader.setFloat("vMin", rangeSpan.x);
+        rcShader.setFloat("vMax", rangeSpan.y);
+
+        rcShader.setTexture("coordIn", projInTexture);
+        rcShader.setTexture("coordOut", projOutTexture);
+        rcShader.setTexture("volume", texVolume);
+        rcShader.setTexture("tFunc", texTransFunc);
 
 		glBindVertexArray(VAO);
 
@@ -342,6 +342,8 @@ int main(int argc, char* argv[])
 		}
 		++count;
 	}
+
+    std::cout << std::endl;
 
 	glDeleteBuffers(1, &VAO);
 	glDeleteBuffers(1, &VBO);
@@ -405,61 +407,61 @@ glm::mat4 rotate_method1(double xpos, double ypos)
 	return glm::rotate(glm::mat4(1.0), theta, rotateAxis);
 }
 
-glm::mat4 rotate_CHEN(double xpos, double ypos)
-{
-	// step1. pa
-	float phi = 0.0;
-	float tau = 0.0;
+// glm::mat4 rotate_CHEN(double xpos, double ypos)
+// {
+// 	// step1. pa
+// 	float phi = 0.0;
+// 	float tau = 0.0;
 
-	float theta = 0.0f;
-	glm::fvec3 rotateAxis = glm::fvec3(1.0);
-	glm::fvec2 d = glm::fvec2(0.0);
+// 	float theta = 0.0f;
+// 	glm::fvec3 rotateAxis = glm::fvec3(1.0);
+// 	glm::fvec2 d = glm::fvec2(0.0);
 
-	currentPoint = screen2Image(xpos, ypos);
+// 	currentPoint = screen2Image(xpos, ypos);
 
-	glm::fvec2 pa = pressPoint;
-	glm::fvec2 pc = currentPoint;
+// 	glm::fvec2 pa = pressPoint;
+// 	glm::fvec2 pc = currentPoint;
 
-	d = pressPoint - currentPoint;
+// 	d = pressPoint - currentPoint;
 
-	// phi = util::calSignedAngle(glm::fvec2(1.0, 0.0), pa);
-	phi = glm::atan(pa.y / pa.x);
-	if (pa.x == 0.0)
-		phi = 0.0;
-	tau = util::calSignedAngle(pa, pc);
+// 	// phi = util::calSignedAngle(glm::fvec2(1.0, 0.0), pa);
+// 	phi = glm::atan(pa.y / pa.x);
+// 	if (pa.x == 0.0)
+// 		phi = 0.0;
+// 	tau = util::calSignedAngle(pa, pc);
 
-	glm::fvec3 unitRotateAxis = {
-		- glm::sin(tau),
-		glm::cos(tau),
-		0.0f };
+// 	glm::fvec3 unitRotateAxis = {
+// 		- glm::sin(tau),
+// 		glm::cos(tau),
+// 		0.0f };
 
-	// case 1. pa = o(0.0, 0.0)
-	if (pa == glm::fvec2(0.0))
-		rotateAxis = unitRotateAxis;
-	// case 2. pa on x-axis
-	if (pa.y == 0.0)
-		{
+// 	// case 1. pa = o(0.0, 0.0)
+// 	if (pa == glm::fvec2(0.0))
+// 		rotateAxis = unitRotateAxis;
+// 	// case 2. pa on x-axis
+// 	if (pa.y == 0.0)
+// 		{
 
-		}
-	// case 3. pa is arbitray
-	float omega = f(glm::length(pa) / 1.0f);
-	auto rotate_z_phi = glm::rotate(glm::mat4(1.0), phi, glm::fvec3(0.0, 0.0, 1.0));
-	auto rotate_y_omega = glm::rotate(glm::mat4(1.0), phi, glm::fvec3(0.0, 1.0, 0.0));
+// 		}
+// 	// case 3. pa is arbitray
+// 	float omega = f(glm::length(pa) / 1.0f);
+// 	auto rotate_z_phi = glm::rotate(glm::mat4(1.0), phi, glm::fvec3(0.0, 0.0, 1.0));
+// 	auto rotate_y_omega = glm::rotate(glm::mat4(1.0), phi, glm::fvec3(0.0, 1.0, 0.0));
 
-	glm::fvec4 unitRAV4 = {
-		unitRotateAxis.x,
-		unitRotateAxis.y,
-		unitRotateAxis.z,
-		1.0f };
+// 	glm::fvec4 unitRAV4 = {
+// 		unitRotateAxis.x,
+// 		unitRotateAxis.y,
+// 		unitRotateAxis.z,
+// 		1.0f };
 
-	rotateAxis = rotate_z_phi * rotate_y_omega * unitRAV4;
+// 	rotateAxis = rotate_z_phi * rotate_y_omega * unitRAV4;
 
-	theta = PI_F / 2.0 * glm::length(d) / 1.0 * (
-		1.0 - (1.0 - 0.2 / PI_F) * 2.0 * omega / PI_F * 
-		(1.0 - glm::abs(glm::cos(tau))));
+// 	theta = PI_F / 2.0 * glm::length(d) / 1.0 * (
+// 		1.0 - (1.0 - 0.2 / PI_F) * 2.0 * omega / PI_F * 
+// 		(1.0 - glm::abs(glm::cos(tau))));
 
-	return glm::rotate(glm::mat4(1.0), theta, rotateAxis);
-}
+// 	return glm::rotate(glm::mat4(1.0), theta, rotateAxis);
+// }
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 {
@@ -502,9 +504,10 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 	camera.ProcessMouseScroll(yoffset);
 }
 
+// to resize cube size with resolution of data
 void updateCubeVerts(glm::uvec3& res)
 {
-	float stdLength = 0.7;
+	float stdLength = 0.5f;
 
 	int maxAxis = std::max({res.x, res.y, res.z});
 	float xScale = 1.0 * res.x / maxAxis;
@@ -512,11 +515,11 @@ void updateCubeVerts(glm::uvec3& res)
 	float zScale = 1.0 * res.z / maxAxis;
 
 	float xmin = -stdLength * xScale;
-	float xmax = stdLength * xScale;
+	float xmax =  stdLength * xScale;
 	float ymin = -stdLength * yScale;
-	float ymax = stdLength * yScale;
+	float ymax =  stdLength * yScale;
 	float zmin = -stdLength * zScale;
-	float zmax = stdLength * zScale;
+	float zmax =  stdLength * zScale;
 
 	float tmpVerts[48] = 
 	{
@@ -530,5 +533,5 @@ void updateCubeVerts(glm::uvec3& res)
 		xmin, ymax, zmax, 0.0, 1.0, 1.0
 	};
 
-	std::copy(tmpVerts, tmpVerts + 48, cubeVerts);
+    std::memcpy(tmpVerts, cubeVerts, sizeof(cubeVerts));
 }

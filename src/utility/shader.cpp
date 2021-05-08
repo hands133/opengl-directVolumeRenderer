@@ -110,6 +110,8 @@ void Shader::setMat4(const std::string &name, const glm::mat4x4 &trans) const
 
 void Shader::setTexture(const std::string &name, const Texture& tex) const
 {
+    tex.active();
+    tex.bind();
 	this->setInt(name, tex.getID() - 1);
 }
 
