@@ -1,7 +1,5 @@
 include/*.zip
 
-dll
-lib
 .vscode
 
 *.exe
