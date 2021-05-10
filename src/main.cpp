@@ -26,7 +26,7 @@ void mouse_callback(GLFWwindow *window, double xpos, double ypos);
 void scroll_callback(GLFWwindow *window, double xoffset, double yoffset);
 void click_callback(GLFWwindow *window, int button, int action, int mods);
 
-void updateCubeVerts(glm::uvec3& res);
+void updateCubeVerts(glm::uvec3& res, Vertex* pVerts);
 // global data and numerics
 // const unsigned int SCR_WIDTH = 1920;
 // const unsigned int SCR_HEIGHT = 1080;
@@ -159,7 +159,7 @@ int main(int argc, char* argv[])
 	std::cout << rawfile;
 
 	auto rawRes = rawfile.resolution();
-	updateCubeVerts(rawRes);
+	updateCubeVerts(rawRes, cubeVerts);
 
 	// VAO, VBO, EBO
 	// send vertex point data to graphic pipeline : vertex shader
@@ -437,7 +437,7 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 }
 
 // to resize cube size with resolution of data
-void updateCubeVerts(glm::uvec3& res)
+void updateCubeVerts(glm::uvec3& res, Vertex* pVerts)
 {
 	float stdLength = 0.5f;
 
@@ -453,17 +453,12 @@ void updateCubeVerts(glm::uvec3& res)
 	float zmin = -stdLength * zScale;
 	float zmax =  stdLength * zScale;
 
-	float tmpVerts[48] = 
-	{
-		xmin, ymin, zmin, 0.0, 0.0, 0.0,
-		xmax, ymin, zmin, 1.0, 0.0, 0.0,
-		xmax, ymax, zmin, 1.0, 1.0, 0.0,
-		xmin, ymax, zmin, 0.0, 1.0, 0.0,
-		xmin, ymin, zmax, 0.0, 0.0, 1.0,
-		xmax, ymin, zmax, 1.0, 0.0, 1.0,
-		xmax, ymax, zmax, 1.0, 1.0, 1.0,
-		xmin, ymax, zmax, 0.0, 1.0, 1.0
-	};
-
-    std::memcpy(tmpVerts, cubeVerts, sizeof(cubeVerts));
+    pVerts[0].P = { xmin, ymin, zmin };
+    pVerts[1].P = { xmax, ymin, zmin };
+    pVerts[2].P = { xmax, ymax, zmin };
+    pVerts[3].P = { xmin, ymax, zmin };
+    pVerts[4].P = { xmin, ymin, zmax };
+    pVerts[5].P = { xmax, ymin, zmax };
+    pVerts[6].P = { xmax, ymax, zmax };
+    pVerts[7].P = { xmin, ymax, zmax };
 }
