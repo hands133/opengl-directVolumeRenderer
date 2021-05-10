@@ -11,7 +11,13 @@ Well, no CMakeLists.txt or make file, just use [Mingw-w64](http://www.mingw-w64.
 
 ## Data Format
 
-Every data file (\*.raw) should be equipped with a data-description file (\*.dat), which describes the basic info of \*.raw file, is consisted of following items:
+### \*.raw file
+
+\*.raw file is a binary file, which is only consists of the sampling value of the original 3D scalar field, total X×Y×Z values. The sequence of the data is arranged in the order of X, than Y and finally Z. It **doesn't** contain any information about resolution and spacing distance.
+
+### \*.dat file
+
+Every raw data file (\*.raw) should be equipped with a data-description file (\*.dat), which describes the basic info of \*.raw file, is consisted of following items:
 
 + `ObjectFileName`: indicates the path of corresponding \*.raw
 + `TaggedFileName`: empty, unknown
