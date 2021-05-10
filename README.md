@@ -9,6 +9,42 @@ It's a simple practice, useless :).
 
 Well, no CMakeLists.txt or make file, just use [Mingw-w64](http://www.mingw-w64.org/doku.php) to compile plz.
 
+## Data Format
+
+Every data file (\*.raw) should be equipped with a data-description file (\*.dat), which describes the basic info of \*.raw file, is consisted of following items:
+
++ `ObjectFileName`: indicates the path of corresponding \*.raw
++ `TaggedFileName`: empty, unknown
++ `Resolution`: X, Y, Z, marks the sampling points along each direction
++ `SliceThickness`: marks the space between adjacent two sampling points in each direction
++ `Format`: the type of the data, described as following table:
+
+keyword | UCHAR | CHAR | USHORT | SHORT | UINT | INT | ULLONG | LLONG
+:--: | :--: | :--: | :--: | :--: | :--: | :--: | :--: | :--:
+type | `uint8_t` | `int8_t` | `uint16_t` | `int16_t` | `uint32_t` | `int32_t` | `uint64_t` | `int64_t`
+
+keyword  | FLOAT | DOUBLE | LDOUBLE
+:--: | :--: | :--: | :--:
+type | `float` | `double` | `long double`
+
+For example, the pair of data:
++ [bonsai.raw]([gallery/bonsai.png](http://cdn.klacansky.com/open-scivis-datasets/bonsai/bonsai_256x256x256_uint8.raw)) (256×256×256，uint8，16.0 MB)
+
+and the corresponding description file bonsai.dat is
+
+```txt
+ObjectFileName: bonsai_256x256x256_uint8.raw
+TaggedFileName: ---
+Resolution:  256  256  256
+SliceThickness: 1.0 1.0 1.0
+Format:         UCHAR
+```
+
+## ChangeLog
+
+### Version 0.1.1
++ Basic rendering pipeline
+
 ## gallery
 
 1. [aneurism](http://cdn.klacansky.com/open-scivis-datasets/aneurism/aneurism_256x256x256_uint8.raw) (256×256×256，uint8，16.0 MB) ![aneurism](./gallery/aneurism.png)
