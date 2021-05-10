@@ -1,6 +1,6 @@
 # opengl-directVolumeRenderer
 
-It's a simple practice, useless :).
+It's a small tool for direct volume rendering, implemented by C++.
 
 + OpenGL(glad & glfw-3.3.2)
 + glm 0.9.9
@@ -50,4 +50,10 @@ Format:         UCHAR
 1. [aneurism](http://cdn.klacansky.com/open-scivis-datasets/aneurism/aneurism_256x256x256_uint8.raw) (256×256×256，uint8，16.0 MB) ![aneurism](./gallery/aneurism.png)
 2. [bonsai]([gallery/bonsai.png](http://cdn.klacansky.com/open-scivis-datasets/bonsai/bonsai_256x256x256_uint8.raw)) (256×256×256，uint8，16.0 MB) ![bonsai](gallery/bonsai.png)
 
-## To be continue...
+## Future work
+
++ Mouse controller
++ Cutting-edge techniques for volume rendering (maybe)
++ Resources manager (maybe)
+
+## To Be Continue...
