@@ -1,8 +1,7 @@
 #include "rawReader.h"
 
-rawFile::rawFile()
+rawFile::rawFile() : d(nullptr), modelMat(glm::mat4(0.0f))
 {
-	d = nullptr;
 	for (int i = 0; i < nameType.size(); ++i)
 		str2Enum[nameType[i]] = typeType[i];
 }
@@ -16,6 +15,9 @@ size_t rawFile::numPoints() const
 bool rawFile::read(const std::string& datPath)
 {
 	bool readDatSucc = readDatFile(datPath);
+    if (readDatSucc)    // calculate model matrix
+        modelMat = calModelMat(info.resolution);
+
 	bool dataMemAlloc = memoryAlloc();
 	// must make sure the rawPath is set
 	bool readRawSucc = readRawFile(info.rawPath);
@@ -346,4 +348,18 @@ void rawFile::dataLP(std::vector<float>& bufferLP)
 	default:
 		break;
 	}
+}
+
+glm::mat4 rawFile::calModelMat(const glm::uvec3& res)
+{
+    int maxAxis = std::max({ res.x, res.y, res.z });
+
+    float xScale = 1.0 * res.x / maxAxis;
+	float yScale = 1.0 * res.y / maxAxis;
+	float zScale = 1.0 * res.z / maxAxis;
+
+    glm::mat4 mat(1.0);
+    mat = glm::scale(mat, glm::vec3(xScale, yScale, zScale));
+
+    return mat;
 }

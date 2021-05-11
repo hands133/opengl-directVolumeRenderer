@@ -18,6 +18,7 @@
 #include <iterator>
 #include <memory>
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <functional>
 
 using std::cin;
@@ -68,6 +69,7 @@ public:
 	glm::vec2 spanValue() 			{ return glm::vec2(minV, maxV); }
 	TYPE getType() const 			{ return type; }
 	std::string getTypeName() const { return nameType[static_cast<int>(type)]; }
+    glm::mat4 getModelMat()         { return modelMat; }
 	// file info
 	std::string path() const		{ return info.rawPath; }
 	std::string tagPath() const		{ return info.tagPath; }
@@ -85,12 +87,14 @@ private:
 	bool memoryAlloc();
 	bool readRawFile(const std::string& rawPath);
 	void calMinMax(TYPE t);
+    glm::mat4 calModelMat(const glm::uvec3& res);
 
 	// data members
 	void* d;
 	TYPE type;
 	rawFileInfo info;
 	float minV, maxV;
+    glm::mat4 modelMat;
 
 	// auxiliary variables
 	std::map<std::string, TYPE> str2Enum;
@@ -98,19 +102,9 @@ private:
 		"NONE", "UCHAR", "CHAR", "USHORT", "SHORT", "INT", "UINT",
 		"FLOAT", "LONG", "ULONG", "LLONG", "ULLONG", "DOUBLE" };
 	std::vector<TYPE> typeType = {
-		TYPE::NONE,
-		TYPE::UCHAR,
-		TYPE::CHAR,
-		TYPE::USHORT,
-		TYPE::SHORT,
-		TYPE::INT,
-		TYPE::UINT,
-		TYPE::FLOAT,
-		TYPE::LONG,
-		TYPE::ULONG,
-		TYPE::LLONG,
-		TYPE::ULLONG,
-		TYPE::DOUBLE };
+		TYPE::NONE, TYPE::UCHAR, TYPE::CHAR, TYPE::USHORT, TYPE::SHORT,
+		TYPE::INT, TYPE::UINT, TYPE::FLOAT, TYPE::LONG, TYPE::ULONG,
+		TYPE::LLONG, TYPE::ULLONG, TYPE::DOUBLE };
 	std::vector<int8_t> eSize = { 0, 1, 1, 2, 2, 4, 4, 4, 4, 4, 8, 8, 8 };
 };
 

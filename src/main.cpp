@@ -26,7 +26,7 @@ void mouse_callback(GLFWwindow *window, double xpos, double ypos);
 void scroll_callback(GLFWwindow *window, double xoffset, double yoffset);
 void click_callback(GLFWwindow *window, int button, int action, int mods);
 
-void updateCubeVerts(glm::uvec3& res, Vertex* pVerts);
+// void updateCubeVerts(glm::uvec3& res, Vertex* pVerts);
 // global data and numerics
 // const unsigned int SCR_WIDTH = 1920;
 // const unsigned int SCR_HEIGHT = 1080;
@@ -134,20 +134,15 @@ int main(int argc, char* argv[])
 
 	glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
 
-	model = glm::mat4(1.0f);
-	model = glm::rotate(model, glm::radians(45.0f), glm::vec3(1.0, 0.0, 0.0));
-	glm::mat4 view = camera.GetViewMatrix();
-	glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.01f, 100.0f);
-
 	// texture : volume
     std::string datPath = "";
 	rawFile rawfile;
 	// datPath = "..\\..\\datatest\\silicium_98_34_34_uint8.dat";
 	// datPath = "..\\..\\datatest\\tooth_103x94x161_uint8.dat";
-	// datPath = "..\\..\\datatest\\fuel_64x64x64_uint8.dat";
+	datPath = "..\\..\\datatest\\fuel_64x64x64_uint8.dat";
 	// datPath = "..\\..\\datatest\\data_256x256x256_float.dat";
 	// datPath = "..\\..\\datatest\\aneurism_256x256x256_uint8.dat";
-	datPath = "..\\..\\datatest\\bonsai_256x256x256_uint8.dat";
+	// datPath = "..\\..\\datatest\\bonsai_256x256x256_uint8.dat";
     bool readSuccess = rawfile.read(datPath);
 
     if (!readSuccess)
@@ -158,8 +153,9 @@ int main(int argc, char* argv[])
 	
 	std::cout << rawfile;
 
-	auto rawRes = rawfile.resolution();
-	updateCubeVerts(rawRes, cubeVerts);
+    model = rawfile.getModelMat();
+	glm::mat4 view = camera.GetViewMatrix();
+	glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.01f, 100.0f);
 
 	// VAO, VBO, EBO
 	// send vertex point data to graphic pipeline : vertex shader
@@ -434,31 +430,4 @@ void click_callback(GLFWwindow* window, int button, int action, int mods)
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
 	camera.ProcessMouseScroll(yoffset);
-}
-
-// to resize cube size with resolution of data
-void updateCubeVerts(glm::uvec3& res, Vertex* pVerts)
-{
-	float stdLength = 0.5f;
-
-	int maxAxis = std::max({res.x, res.y, res.z});
-	float xScale = 1.0 * res.x / maxAxis;
-	float yScale = 1.0 * res.y / maxAxis;
-	float zScale = 1.0 * res.z / maxAxis;
-
-	float xmin = -stdLength * xScale;
-	float xmax =  stdLength * xScale;
-	float ymin = -stdLength * yScale;
-	float ymax =  stdLength * yScale;
-	float zmin = -stdLength * zScale;
-	float zmax =  stdLength * zScale;
-
-    pVerts[0].P = { xmin, ymin, zmin };
-    pVerts[1].P = { xmax, ymin, zmin };
-    pVerts[2].P = { xmax, ymax, zmin };
-    pVerts[3].P = { xmin, ymax, zmin };
-    pVerts[4].P = { xmin, ymin, zmax };
-    pVerts[5].P = { xmax, ymin, zmax };
-    pVerts[6].P = { xmax, ymax, zmax };
-    pVerts[7].P = { xmin, ymax, zmax };
 }
