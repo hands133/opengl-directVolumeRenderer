@@ -392,6 +392,62 @@ glm::mat4 rotate_method1(double xpos, double ypos)
 	return glm::rotate(glm::mat4(1.0), theta, rotateAxis);
 }
 
+// glm::mat4 rotate_CHEN(double xpos, double ypos)
+// {
+// 	// step1. pa
+// 	float phi = 0.0;
+// 	float tau = 0.0;
+
+// 	float theta = 0.0f;
+// 	glm::fvec3 rotateAxis = glm::fvec3(1.0);
+// 	glm::fvec2 d = glm::fvec2(0.0);
+
+// 	currentPoint = screen2Image(xpos, ypos);
+
+// 	glm::fvec2 pa = pressPoint;
+// 	glm::fvec2 pc = currentPoint;
+
+// 	d = pressPoint - currentPoint;
+
+// 	// phi = util::calSignedAngle(glm::fvec2(1.0, 0.0), pa);
+// 	phi = glm::atan(pa.y / pa.x);
+// 	if (pa.x == 0.0)
+// 		phi = 0.0;
+// 	tau = util::calSignedAngle(pa, pc);
+
+// 	glm::fvec3 unitRotateAxis = {
+// 		- glm::sin(tau),
+// 		glm::cos(tau),
+// 		0.0f };
+
+// 	// case 1. pa = o(0.0, 0.0)
+// 	if (pa == glm::fvec2(0.0))
+// 		rotateAxis = unitRotateAxis;
+// 	// case 2. pa on x-axis
+// 	if (pa.y == 0.0)
+// 		{
+
+// 		}
+// 	// case 3. pa is arbitray
+// 	float omega = f(glm::length(pa) / 1.0f);
+// 	auto rotate_z_phi = glm::rotate(glm::mat4(1.0), phi, glm::fvec3(0.0, 0.0, 1.0));
+// 	auto rotate_y_omega = glm::rotate(glm::mat4(1.0), phi, glm::fvec3(0.0, 1.0, 0.0));
+
+// 	glm::fvec4 unitRAV4 = {
+// 		unitRotateAxis.x,
+// 		unitRotateAxis.y,
+// 		unitRotateAxis.z,
+// 		1.0f };
+
+// 	rotateAxis = rotate_z_phi * rotate_y_omega * unitRAV4;
+
+// 	theta = PI_F / 2.0 * glm::length(d) / 1.0 * (
+// 		1.0 - (1.0 - 0.2 / PI_F) * 2.0 * omega / PI_F * 
+// 		(1.0 - glm::abs(glm::cos(tau))));
+
+// 	return glm::rotate(glm::mat4(1.0), theta, rotateAxis);
+// }
+
 void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 {
 	auto cursor2Image = screen2Image(xpos, ypos);
