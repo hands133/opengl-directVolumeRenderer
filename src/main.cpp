@@ -130,9 +130,9 @@ int main(int argc, char* argv[])
 	rawFile rawfile;
 	// datPath = "..\\..\\datatest\\silicium_98_34_34_uint8.dat";
 	// datPath = "..\\..\\datatest\\tooth_103x94x161_uint8.dat";
-	datPath = "..\\..\\datatest\\fuel_64x64x64_uint8.dat";
+	// datPath = "..\\..\\datatest\\fuel_64x64x64_uint8.dat";
 	// datPath = "..\\..\\datatest\\data_256x256x256_float.dat";
-	// datPath = "..\\..\\datatest\\aneurism_256x256x256_uint8.dat";
+	datPath = "..\\..\\datatest\\aneurism_256x256x256_uint8.dat";
 	// datPath = "..\\..\\datatest\\bonsai_256x256x256_uint8.dat";
     bool readSuccess = rawfile.read(datPath);
 
@@ -218,8 +218,8 @@ int main(int argc, char* argv[])
 	Texture texTransFunc("transfer function", GL_TEXTURE_1D, 0, GL_CLAMP_TO_EDGE, GL_LINEAR, true);
 	texTransFunc.setData(GL_RGBA, glm::ivec3(7, 0, 0), 0, GL_RGBA, GL_FLOAT, transFunctionf);
 	
-	Shader projShader("../shaders/rayIn_vert.glsl", "../shaders/rayIn_frag.glsl");
-	Shader rcShader("../shaders/rayCasting_vert.glsl", "../shaders/rayCasting_frag.glsl");
+	Shader projShader("../resources/shaders/rayIn_vert.glsl", "../resources/shaders/rayIn_frag.glsl");
+	Shader rcShader("../resources/shaders/rayCasting_vert.glsl", "../resources/shaders/rayCasting_frag.glsl");
 	
 	glEnable(GL_CULL_FACE);
 	
@@ -274,7 +274,6 @@ int main(int argc, char* argv[])
 		projOutFBuffer.unbind();
 
 		// render to screen
-
         glDepthFunc(GL_LESS);
 		glCullFace(GL_BACK);
 		glEnable(GL_BLEND);
@@ -341,90 +340,27 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 	glViewport(0, 0, width, height);
 }
 
-inline glm::dvec2 screen2Image(double xpos, double ypos)
+// NOTE: every parameter (pos) passed by const reference,
+// should be converted from screen coordinates to image coordinates,
+// which the origin point on the left-top corner on the screen, now
+// should be put on the center of the screen.
+
+// The function screen2Image shouldn't be member function,
+// especially not the part of the controller.
+
+inline glm::dvec2 screen2Image(glm::dvec2 pos, glm::uvec2 res)
 {
-	glm::dvec2 imageCoord(
-		2.0 * xpos / SCR_WIDTH - 1.0,
-		-2.0 * ypos / SCR_HEIGHT + 1.0);
-
-	return imageCoord;
+    glm::dvec2 imageCoord(
+        2.0 * pos.x / res.x - 1.0,
+        -2.0 * pos.y / res.y + 1.0);
+    return imageCoord;
 }
-
-inline float z(glm::fvec2 pos)
-{
-	float d = pos.x * pos.x + pos.y * pos.y;
-	float r = 1.0;
-
-	if (d < r / 2.0)	return std::sqrt(r * r - d);
-	else				return r / 2.0 / std::sqrt(d);
-}
-
-inline float f(float v)
-{
-	if (v <= 0.0)	return 0.0;
-
-	return std::min(v, 1.0f) * glm::pi<float>() / 2.0;
-}
-
-// glm::mat4 rotate_CHEN(double xpos, double ypos)
-// {
-// 	// step1. pa
-// 	float phi = 0.0;
-// 	float tau = 0.0;
-
-// 	float theta = 0.0f;
-// 	glm::fvec3 rotateAxis = glm::fvec3(1.0);
-// 	glm::fvec2 d = glm::fvec2(0.0);
-
-// 	currentPoint = screen2Image(xpos, ypos);
-
-// 	glm::fvec2 pa = pressPoint;
-// 	glm::fvec2 pc = currentPoint;
-
-// 	d = pressPoint - currentPoint;
-
-// 	// phi = util::calSignedAngle(glm::fvec2(1.0, 0.0), pa);
-// 	phi = glm::atan(pa.y / pa.x);
-// 	if (pa.x == 0.0)
-// 		phi = 0.0;
-// 	tau = util::calSignedAngle(pa, pc);
-
-// 	glm::fvec3 unitRotateAxis = {
-// 		- glm::sin(tau),
-// 		glm::cos(tau),
-// 		0.0f };
-
-// 	// case 1. pa = o(0.0, 0.0)
-// 	if (pa == glm::fvec2(0.0))
-// 		rotateAxis = unitRotateAxis;
-// 	// case 2. pa on x-axis
-// 	if (pa.y == 0.0)
-// 		{
-
-// 		}
-// 	// case 3. pa is arbitray
-// 	float omega = f(glm::length(pa) / 1.0f);
-// 	auto rotate_z_phi = glm::rotate(glm::mat4(1.0), phi, glm::fvec3(0.0, 0.0, 1.0));
-// 	auto rotate_y_omega = glm::rotate(glm::mat4(1.0), phi, glm::fvec3(0.0, 1.0, 0.0));
-
-// 	glm::fvec4 unitRAV4 = {
-// 		unitRotateAxis.x,
-// 		unitRotateAxis.y,
-// 		unitRotateAxis.z,
-// 		1.0f };
-
-// 	rotateAxis = rotate_z_phi * rotate_y_omega * unitRAV4;
-
-// 	theta = PI_F / 2.0 * glm::length(d) / 1.0 * (
-// 		1.0 - (1.0 - 0.2 / PI_F) * 2.0 * omega / PI_F * 
-// 		(1.0 - glm::abs(glm::cos(tau))));
-
-// 	return glm::rotate(glm::mat4(1.0), theta, rotateAxis);
-// }
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 {
-	auto cursor2Image = screen2Image(xpos, ypos);
+    auto cursor2Image = screen2Image(
+        glm::dvec2(xpos, ypos),
+        glm::uvec2(SCR_WIDTH, SCR_HEIGHT));
 
     controller.setCurrent(cursor2Image);
 }
