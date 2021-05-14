@@ -14,9 +14,7 @@
 #include "texture.h"
 #include "util.h"
 #include "ds_pod.h"
-
-const float PI_F = glm::pi<float>();
-const double PI_D = glm::pi<double>();
+#include "controller.h"
 
 // call back functions
 
@@ -88,20 +86,13 @@ glm::fvec4 bgColor = glm::fvec4(
 
 // camera
 Camera camera(glm::vec3(0.0, 0.0, 3.0));
+Controller controller;
 
 bool mouseClicked = false;
 
-// drag management
-glm::mat4 drag = glm::mat4(1.0);
+// maybe matrix model could be part of the class renderer
+// in the future
 glm::mat4 model = glm::mat4(1.0);
-
-glm::fvec2 pressPoint = glm::fvec2(0.0);
-glm::fvec2 currentPoint = glm::fvec2(0.0);
-
-glm::fvec3 V1;
-glm::fvec3 V2;
-
-double x, y;	// mouse position
 
 int main(int argc, char* argv[])
 {
@@ -245,7 +236,7 @@ int main(int argc, char* argv[])
 		glClearColor(bgColor.x, bgColor.y, bgColor.z, bgColor.w);
 
 		projShader.use();
-		projShader.setMat4("model", drag * model);
+		projShader.setMat4("model", controller.getDragMat() * model);
 		projShader.setMat4("view", view);
 		projShader.setMat4("projection", projection);
 
@@ -293,7 +284,7 @@ int main(int argc, char* argv[])
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		rcShader.use();
-		rcShader.setMat4("model", drag * model);
+		rcShader.setMat4("model", controller.getDragMat() * model);
 		rcShader.setMat4("view", view);
 		rcShader.setMat4("projection", projection);
 
@@ -350,11 +341,11 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 	glViewport(0, 0, width, height);
 }
 
-inline glm::fvec2 screen2Image(double xpos, double ypos)
+inline glm::dvec2 screen2Image(double xpos, double ypos)
 {
-	glm::fvec2 imageCoord(
-		2 * xpos / SCR_WIDTH - 1.0,
-		-2 * ypos / SCR_HEIGHT + 1.0);
+	glm::dvec2 imageCoord(
+		2.0 * xpos / SCR_WIDTH - 1.0,
+		-2.0 * ypos / SCR_HEIGHT + 1.0);
 
 	return imageCoord;
 }
@@ -373,23 +364,6 @@ inline float f(float v)
 	if (v <= 0.0)	return 0.0;
 
 	return std::min(v, 1.0f) * glm::pi<float>() / 2.0;
-}
-
-glm::mat4 rotate_method1(double xpos, double ypos)
-{
-	float theta = 0.0f;
-	glm::fvec3 rotateAxis = glm::fvec3(1.0);
-
-	currentPoint = screen2Image(xpos, ypos);
-	glm::fvec2 dir = glm::normalize(currentPoint - pressPoint);
-	
-	V2 = glm::fvec3(currentPoint.x, currentPoint.y, z(currentPoint));
-	V2 = glm::normalize(V2);
-
-	theta = std::acos(glm::dot(V1, V2));
-	rotateAxis = glm::cross(V1, V2);
-
-	return glm::rotate(glm::mat4(1.0), theta, rotateAxis);
 }
 
 // glm::mat4 rotate_CHEN(double xpos, double ypos)
@@ -451,12 +425,8 @@ glm::mat4 rotate_method1(double xpos, double ypos)
 void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 {
 	auto cursor2Image = screen2Image(xpos, ypos);
-	x = cursor2Image.x;
-	y = cursor2Image.y;
-	if (mouseClicked)
-	{
-		drag = rotate_method1(xpos, ypos);
-	}
+
+    controller.setCurrent(cursor2Image);
 }
 
 void click_callback(GLFWwindow* window, int button, int action, int mods)
@@ -465,20 +435,15 @@ void click_callback(GLFWwindow* window, int button, int action, int mods)
 	{
 		if (button == GLFW_MOUSE_BUTTON_1)
 		{
-			mouseClicked = true;
-			pressPoint.x = x;
-			pressPoint.y = y;
-			V1 = glm::fvec3(pressPoint.x, pressPoint.y, z(pressPoint));
-			V1 = glm::normalize(V1);
+            controller.setPressed();
 		}
 	}
 	else if (action == GLFW_RELEASE)
 	{
 		if (button == GLFW_MOUSE_BUTTON_1)
 		{
-			mouseClicked = false;
-			model = drag * model;
-			drag = glm::mat4(1.0);
+            model = controller.getDragMat() * model;
+            controller.setRelease();
 		}
 	}
 }
