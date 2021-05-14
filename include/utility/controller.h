@@ -10,17 +10,10 @@
 
 #include "base.h"
 
-// NOTE: every parameter (pos) passed by const reference,
-// should be converted from screen coordinates to image coordinates,
-// which the origin point on the left-top corner on the screen, now
-// should be put on the center of the screen.
-// The function screen2Image shouldn't be member function,
-// especially not the part of the controller.
-
-using pos = glm::dvec2;
-
 class Controller
 {
+    using pos = glm::dvec2;
+
 public:
 
     Controller() {};
