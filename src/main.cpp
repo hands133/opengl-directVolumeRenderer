@@ -14,7 +14,7 @@
 #include "texture.h"
 #include "util.h"
 #include "ds_pod.h"
-#include "controller.h"
+#include "trackBall_CHEN.h"
 
 // call back functions
 
@@ -86,7 +86,7 @@ glm::fvec4 bgColor = glm::fvec4(
 
 // camera
 Camera camera(glm::vec3(0.0, 0.0, 3.0));
-Controller controller;
+std::unique_ptr<TrackBall_CHEN> ptrackBall = nullptr;
 
 bool mouseClicked = false;
 
@@ -141,6 +141,9 @@ int main(int argc, char* argv[])
         std::cout << "Read file " << datPath << " Failed" << std::endl;
         return -1;
     }
+
+    // ptrackBall = std::make_unique<TrackBall_CHEN>(new TrackBall_CHEN());
+    ptrackBall = std::unique_ptr<TrackBall_CHEN>(new TrackBall_CHEN());
 	
 	std::cout << rawfile;
 
@@ -236,7 +239,7 @@ int main(int argc, char* argv[])
 		glClearColor(bgColor.x, bgColor.y, bgColor.z, bgColor.w);
 
 		projShader.use();
-		projShader.setMat4("model", controller.getDragMat() * model);
+		projShader.setMat4("model", ptrackBall->getDragMat() * model);
 		projShader.setMat4("view", view);
 		projShader.setMat4("projection", projection);
 
@@ -283,7 +286,7 @@ int main(int argc, char* argv[])
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		rcShader.use();
-		rcShader.setMat4("model", controller.getDragMat() * model);
+		rcShader.setMat4("model", ptrackBall->getDragMat() * model);
 		rcShader.setMat4("view", view);
 		rcShader.setMat4("projection", projection);
 
@@ -313,7 +316,7 @@ int main(int argc, char* argv[])
 
 			float fps = 1000 / (1.0 * tt.count());
 
-			std::cout << "Duration = " << tt.count() << " ms, FPS = " << fps << "\r";
+			std::cout << "Delay = " << tt.count() << " ms, FPS = " << fps << "\r";
 		}
 		++count;
 	}
@@ -362,7 +365,8 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
         glm::dvec2(xpos, ypos),
         glm::uvec2(SCR_WIDTH, SCR_HEIGHT));
 
-    controller.setCurrent(cursor2Image);
+    ptrackBall->setCurrentPos(cursor2Image);
+    // controller.setCurrent(cursor2Image);
 }
 
 void click_callback(GLFWwindow* window, int button, int action, int mods)
@@ -371,15 +375,18 @@ void click_callback(GLFWwindow* window, int button, int action, int mods)
 	{
 		if (button == GLFW_MOUSE_BUTTON_1)
 		{
-            controller.setPressed();
+            ptrackBall->setPressPos();
+            // controller.setPressed();
 		}
 	}
 	else if (action == GLFW_RELEASE)
 	{
 		if (button == GLFW_MOUSE_BUTTON_1)
 		{
-            model = controller.getDragMat() * model;
-            controller.setRelease();
+            // model = controller.getDragMat() * model;
+            model = ptrackBall->getDragMat() * model;
+            // controller.setRelease();
+            ptrackBall->setReleasePos();
 		}
 	}
 }
