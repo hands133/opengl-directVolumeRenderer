@@ -3,3 +3,4 @@ include/*.zip
 .vscode
 
 *.exe
+/msvc-build
