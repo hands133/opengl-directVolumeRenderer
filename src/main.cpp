@@ -1,5 +1,5 @@
 #include <glad/glad.h>
-#include <glfw3.h>
+#include <GLFW/glfw3.h>
 
 #include <iostream>
 #include <chrono>
@@ -96,6 +96,7 @@ glm::mat4 model = glm::mat4(1.0);
 
 int main(int argc, char* argv[])
 {
+	std::cout << "Excute dir : " << argv[0] << std::endl;
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
