@@ -25,7 +25,7 @@ target_include_directories(libVR
 
 add_executable(tinyVR  ${SOURCE_BASE_DIR}main.cpp)
 
-
+# GLFW
 add_subdirectory(${ThirdLIB_BASE_DIR}glfw)
 option(BUILD_STATIC_LIBS "Build shared libraries" On)
 option(GLFW_BUILD_EXAMPLES "Build the GLFW example programs" OFF)
