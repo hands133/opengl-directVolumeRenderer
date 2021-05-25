@@ -1,5 +1,5 @@
 #include <glad/glad.h>
-#include <glfw3.h>
+#include <GLFW/glfw3.h>
 
 #include <iostream>
 #include <chrono>
@@ -14,9 +14,7 @@
 #include "texture.h"
 #include "util.h"
 #include "ds_pod.h"
-
-const float PI_F = glm::pi<float>();
-const double PI_D = glm::pi<double>();
+#include "trackBall_CHEN.h"
 
 // call back functions
 
@@ -88,23 +86,17 @@ glm::fvec4 bgColor = glm::fvec4(
 
 // camera
 Camera camera(glm::vec3(0.0, 0.0, 3.0));
+std::unique_ptr<TrackBall_CHEN> ptrackBall = nullptr;
 
 bool mouseClicked = false;
 
-// drag management
-glm::mat4 drag = glm::mat4(1.0);
+// maybe matrix model could be part of the class renderer
+// in the future
 glm::mat4 model = glm::mat4(1.0);
-
-glm::fvec2 pressPoint = glm::fvec2(0.0);
-glm::fvec2 currentPoint = glm::fvec2(0.0);
-
-glm::fvec3 V1;
-glm::fvec3 V2;
-
-double x, y;	// mouse position
 
 int main(int argc, char* argv[])
 {
+	std::cout << "Excute dir : " << argv[0] << std::endl;
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
@@ -139,9 +131,9 @@ int main(int argc, char* argv[])
 	rawFile rawfile;
 	// datPath = "..\\..\\datatest\\silicium_98_34_34_uint8.dat";
 	// datPath = "..\\..\\datatest\\tooth_103x94x161_uint8.dat";
-	datPath = "..\\..\\datatest\\fuel_64x64x64_uint8.dat";
+	// datPath = "..\\..\\datatest\\fuel_64x64x64_uint8.dat";
 	// datPath = "..\\..\\datatest\\data_256x256x256_float.dat";
-	// datPath = "..\\..\\datatest\\aneurism_256x256x256_uint8.dat";
+	datPath = "..\\..\\datatest\\aneurism_256x256x256_uint8.dat";
 	// datPath = "..\\..\\datatest\\bonsai_256x256x256_uint8.dat";
     bool readSuccess = rawfile.read(datPath);
 
@@ -150,6 +142,9 @@ int main(int argc, char* argv[])
         std::cout << "Read file " << datPath << " Failed" << std::endl;
         return -1;
     }
+
+    // ptrackBall = std::make_unique<TrackBall_CHEN>(new TrackBall_CHEN());
+    ptrackBall = std::unique_ptr<TrackBall_CHEN>(new TrackBall_CHEN());
 	
 	std::cout << rawfile;
 
@@ -227,8 +222,8 @@ int main(int argc, char* argv[])
 	Texture texTransFunc("transfer function", GL_TEXTURE_1D, 0, GL_CLAMP_TO_EDGE, GL_LINEAR, true);
 	texTransFunc.setData(GL_RGBA, glm::ivec3(7, 0, 0), 0, GL_RGBA, GL_FLOAT, transFunctionf);
 	
-	Shader projShader("../shaders/rayIn_vert.glsl", "../shaders/rayIn_frag.glsl");
-	Shader rcShader("../shaders/rayCasting_vert.glsl", "../shaders/rayCasting_frag.glsl");
+	Shader projShader("../resources/shaders/rayIn_vert.glsl", "../resources/shaders/rayIn_frag.glsl");
+	Shader rcShader("../resources/shaders/rayCasting_vert.glsl", "../resources/shaders/rayCasting_frag.glsl");
 	
 	glEnable(GL_CULL_FACE);
 	
@@ -245,7 +240,7 @@ int main(int argc, char* argv[])
 		glClearColor(bgColor.x, bgColor.y, bgColor.z, bgColor.w);
 
 		projShader.use();
-		projShader.setMat4("model", drag * model);
+		projShader.setMat4("model", ptrackBall->getDragMat() * model);
 		projShader.setMat4("view", view);
 		projShader.setMat4("projection", projection);
 
@@ -283,7 +278,6 @@ int main(int argc, char* argv[])
 		projOutFBuffer.unbind();
 
 		// render to screen
-
         glDepthFunc(GL_LESS);
 		glCullFace(GL_BACK);
 		glEnable(GL_BLEND);
@@ -293,7 +287,7 @@ int main(int argc, char* argv[])
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		rcShader.use();
-		rcShader.setMat4("model", drag * model);
+		rcShader.setMat4("model", ptrackBall->getDragMat() * model);
 		rcShader.setMat4("view", view);
 		rcShader.setMat4("projection", projection);
 
@@ -323,7 +317,7 @@ int main(int argc, char* argv[])
 
 			float fps = 1000 / (1.0 * tt.count());
 
-			std::cout << "Duration = " << tt.count() << " ms, FPS = " << fps << "\r";
+			std::cout << "Delay = " << tt.count() << " ms, FPS = " << fps << "\r";
 		}
 		++count;
 	}
@@ -350,57 +344,30 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 	glViewport(0, 0, width, height);
 }
 
-inline glm::fvec2 screen2Image(double xpos, double ypos)
+// NOTE: every parameter (pos) passed by const reference,
+// should be converted from screen coordinates to image coordinates,
+// which the origin point on the left-top corner on the screen, now
+// should be put on the center of the screen.
+
+// The function screen2Image shouldn't be member function,
+// especially not the part of the controller.
+
+inline glm::dvec2 screen2Image(glm::dvec2 pos, glm::uvec2 res)
 {
-	glm::fvec2 imageCoord(
-		2 * xpos / SCR_WIDTH - 1.0,
-		-2 * ypos / SCR_HEIGHT + 1.0);
-
-	return imageCoord;
-}
-
-inline float z(glm::fvec2 pos)
-{
-	float d = pos.x * pos.x + pos.y * pos.y;
-	float r = 1.0;
-
-	if (d < r / 2.0)	return std::sqrt(r * r - d);
-	else				return r / 2.0 / std::sqrt(d);
-}
-
-inline float f(float v)
-{
-	if (v <= 0.0)	return 0.0;
-
-	return std::min(v, 1.0f) * glm::pi<float>() / 2.0;
-}
-
-glm::mat4 rotate_method1(double xpos, double ypos)
-{
-	float theta = 0.0f;
-	glm::fvec3 rotateAxis = glm::fvec3(1.0);
-
-	currentPoint = screen2Image(xpos, ypos);
-	glm::fvec2 dir = glm::normalize(currentPoint - pressPoint);
-	
-	V2 = glm::fvec3(currentPoint.x, currentPoint.y, z(currentPoint));
-	V2 = glm::normalize(V2);
-
-	theta = std::acos(glm::dot(V1, V2));
-	rotateAxis = glm::cross(V1, V2);
-
-	return glm::rotate(glm::mat4(1.0), theta, rotateAxis);
+    glm::dvec2 imageCoord(
+        2.0 * pos.x / res.x - 1.0,
+        -2.0 * pos.y / res.y + 1.0);
+    return imageCoord;
 }
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 {
-	auto cursor2Image = screen2Image(xpos, ypos);
-	x = cursor2Image.x;
-	y = cursor2Image.y;
-	if (mouseClicked)
-	{
-		drag = rotate_method1(xpos, ypos);
-	}
+    auto cursor2Image = screen2Image(
+        glm::dvec2(xpos, ypos),
+        glm::uvec2(SCR_WIDTH, SCR_HEIGHT));
+
+    ptrackBall->setCurrentPos(cursor2Image);
+    // controller.setCurrent(cursor2Image);
 }
 
 void click_callback(GLFWwindow* window, int button, int action, int mods)
@@ -409,20 +376,18 @@ void click_callback(GLFWwindow* window, int button, int action, int mods)
 	{
 		if (button == GLFW_MOUSE_BUTTON_1)
 		{
-			mouseClicked = true;
-			pressPoint.x = x;
-			pressPoint.y = y;
-			V1 = glm::fvec3(pressPoint.x, pressPoint.y, z(pressPoint));
-			V1 = glm::normalize(V1);
+            ptrackBall->setPressPos();
+            // controller.setPressed();
 		}
 	}
 	else if (action == GLFW_RELEASE)
 	{
 		if (button == GLFW_MOUSE_BUTTON_1)
 		{
-			mouseClicked = false;
-			model = drag * model;
-			drag = glm::mat4(1.0);
+            // model = controller.getDragMat() * model;
+            model = ptrackBall->getDragMat() * model;
+            // controller.setRelease();
+            ptrackBall->setReleasePos();
 		}
 	}
 }
