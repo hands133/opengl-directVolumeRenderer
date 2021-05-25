@@ -5,12 +5,13 @@ It's a small tool for direct volume rendering, implemented by C++.
 + OpenGL(glad & glfw-3.3.2)
 + glm 0.9.9
 ---
-## compilation
+## Build & Compile
 
 ```bash
 mkdir build
 cd ./build/
 cmake ..
+make
 ```
 
 ## Data Format
