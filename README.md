@@ -11,10 +11,7 @@ It's a small tool for direct volume rendering, implemented by C++.
 mkdir build
 cd ./build/
 cmake ..
-<<<<<<< HEAD
 make
-=======
->>>>>>> dev
 ```
 
 ## Data Format
