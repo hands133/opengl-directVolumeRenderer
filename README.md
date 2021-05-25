@@ -7,7 +7,11 @@ It's a small tool for direct volume rendering, implemented by C++.
 ---
 ## compilation
 
-Well, no CMakeLists.txt or make file, just use [Mingw-w64](http://www.mingw-w64.org/doku.php) to compile plz.
+```bash
+mkdir build
+cd ./build/
+cmake ..
+```
 
 ## Data Format
 
@@ -25,13 +29,13 @@ Every raw data file (\*.raw) should be equipped with a data-description file (\*
 + `SliceThickness`: marks the space between adjacent two sampling points in each direction
 + `Format`: the type of the data, described as following table:
 
-keyword | UCHAR | CHAR | USHORT | SHORT | UINT | INT | ULLONG | LLONG
-:--: | :--: | :--: | :--: | :--: | :--: | :--: | :--: | :--:
-type | `uint8_t` | `int8_t` | `uint16_t` | `int16_t` | `uint32_t` | `int32_t` | `uint64_t` | `int64_t`
+keyword | UCHAR | CHAR | USHORT | SHORT | UINT | INT
+:--: | :--: | :--: | :--: | :--: | :--: | :--: 
+type | `uint8_t` | `int8_t` | `uint16_t` | `int16_t` | `uint32_t` | `int32_t` 
 
-keyword  | FLOAT | DOUBLE | LDOUBLE
-:--: | :--: | :--: | :--:
-type | `float` | `double` | `long double`
+keyword | ULLONG | LLONG | FLOAT | DOUBLE | LDOUBLE
+:--: | :--: | :--: | :--: | :--: | :--:
+type | `uint64_t` | `int64_t` | `float` | `double` | `long double`
 
 For example, the pair of data:
 + [bonsai.raw]([gallery/bonsai.png](http://cdn.klacansky.com/open-scivis-datasets/bonsai/bonsai_256x256x256_uint8.raw)) (256×256×256，uint8，16.0 MB)
@@ -48,18 +52,26 @@ Format:         UCHAR
 
 ## ChangeLog
 
-### Version 0.1.1
+### Version 0.1.0
++ Change structure of the projects
++ Add CMakeLists.txt
+### Version 0.0.1
 + Basic rendering pipeline
 
-## gallery
+## Gallery
 
-1. [aneurism](http://cdn.klacansky.com/open-scivis-datasets/aneurism/aneurism_256x256x256_uint8.raw) (256×256×256，uint8，16.0 MB) ![aneurism](./gallery/aneurism.png)
-2. [bonsai]([gallery/bonsai.png](http://cdn.klacansky.com/open-scivis-datasets/bonsai/bonsai_256x256x256_uint8.raw)) (256×256×256，uint8，16.0 MB) ![bonsai](gallery/bonsai.png)
+1. [aneurism](http://cdn.klacansky.com/open-scivis-datasets/aneurism/aneurism_256x256x256_uint8.raw) (256×256×256，uint8，16.0 MB)
+
+![aneurism](./gallery/aneurism.png)
+
+2. [bonsai]([gallery/bonsai.png](http://cdn.klacansky.com/open-scivis-datasets/bonsai/bonsai_256x256x256_uint8.raw)) (256×256×256，uint8，16.0 MB)
+
+![bonsai](gallery/bonsai.png)
 
 ## Future work
 
-+ Mouse controller
 + Cutting-edge techniques for volume rendering (maybe)
 + Resources manager (maybe)
++ Mouse controller (done)
 
 ## To Be Continue...
