@@ -5,9 +5,14 @@ It's a small tool for direct volume rendering, implemented by C++.
 + OpenGL(glad & glfw-3.3.2)
 + glm 0.9.9
 ---
-## compilation
+## Build & Compile
 
-Well, no CMakeLists.txt or make file, just use [Mingw-w64](http://www.mingw-w64.org/doku.php) to compile plz.
+```bash
+mkdir build
+cd ./build/
+cmake ..
+make
+```
 
 ## Data Format
 
@@ -48,10 +53,13 @@ Format:         UCHAR
 
 ## ChangeLog
 
-### Version 0.1.1
+### Version 0.1.0
++ Change structure of the projects
++ Add CMakeLists.txt
+### Version 0.0.1
 + Basic rendering pipeline
 
-## gallery
+## Gallery
 
 1. [aneurism](http://cdn.klacansky.com/open-scivis-datasets/aneurism/aneurism_256x256x256_uint8.raw) (256×256×256，uint8，16.0 MB)
 
@@ -63,8 +71,8 @@ Format:         UCHAR
 
 ## Future work
 
-+ Mouse controller
 + Cutting-edge techniques for volume rendering (maybe)
 + Resources manager (maybe)
++ Mouse controller (done)
 
 ## To Be Continue...
