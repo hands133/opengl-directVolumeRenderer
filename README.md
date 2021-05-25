@@ -7,7 +7,11 @@ It's a small tool for direct volume rendering, implemented by C++.
 ---
 ## compilation
 
-Well, no CMakeLists.txt or make file, just use [Mingw-w64](http://www.mingw-w64.org/doku.php) to compile plz.
+```bash
+mkdir build
+cd ./build/
+cmake ..
+```
 
 ## Data Format
 
@@ -48,7 +52,10 @@ Format:         UCHAR
 
 ## ChangeLog
 
-### Version 0.1.1
+### Version 0.1.0
++ Change structure of the projects
++ Add CMakeLists.txt
+### Version 0.0.1
 + Basic rendering pipeline
 
 ## gallery
@@ -63,8 +70,8 @@ Format:         UCHAR
 
 ## Future work
 
-+ Mouse controller
 + Cutting-edge techniques for volume rendering (maybe)
 + Resources manager (maybe)
++ Mouse controller (done)
 
 ## To Be Continue...
