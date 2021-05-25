@@ -58,7 +58,7 @@ Format:         UCHAR
 ### Version 0.0.1
 + Basic rendering pipeline
 
-## gallery
+## Gallery
 
 1. [aneurism](http://cdn.klacansky.com/open-scivis-datasets/aneurism/aneurism_256x256x256_uint8.raw) (256×256×256，uint8，16.0 MB)
 
