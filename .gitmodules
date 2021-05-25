@@ -1,0 +1,6 @@
+[submodule "include/vendor/glfw"]
+	path = include/vendor/glfw
+	url = https://hub.fastgit.org/glfw/glfw
+[submodule "include/vendor/glm"]
+	path = include/vendor/glm
+	url = https://hub.fastgit.org/g-truc/glm
