@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="resources">
+      <UniqueIdentifier>{202B5BA7-8C95-0F1E-D5D3-C0C3417DED72}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="resources\shaders">
+      <UniqueIdentifier>{19081037-851E-0ECD-CE95-99EE3AEBDE54}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="resources\shaders\example">
+      <UniqueIdentifier>{F4229368-60E5-C6F2-A995-557F15979FD0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="resources\shaders\rayCasting">
+      <UniqueIdentifier>{7D34E236-69EF-D1E2-12A7-4A2DFE401C73}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="resources\shaders\test">
+      <UniqueIdentifier>{48D83908-34D2-625A-1D3F-F96A09D8C8C6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{2DAB880B-99B4-887C-2230-9F7C8E38947C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\files">
+      <UniqueIdentifier>{8F3E2DB5-FBA8-E12B-44E7-92D1B090BF80}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\layers">
+      <UniqueIdentifier>{6C614A68-5819-8CB5-C120-6511ADF726A6}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\files\datFile.h">
+      <Filter>src\files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\layers\vrRCLayer.h">
+      <Filter>src\layers</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\RCApp.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\files\datFile.cpp">
+      <Filter>src\files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\layers\vrRCLayer.cpp">
+      <Filter>src\layers</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="resources\shaders\example\expSquare_frag.glsl">
+      <Filter>resources\shaders\example</Filter>
+    </None>
+    <None Include="resources\shaders\example\expSquare_vert.glsl">
+      <Filter>resources\shaders\example</Filter>
+    </None>
+    <None Include="resources\shaders\example\expTriangle_frag.glsl">
+      <Filter>resources\shaders\example</Filter>
+    </None>
+    <None Include="resources\shaders\example\expTriangle_vert.glsl">
+      <Filter>resources\shaders\example</Filter>
+    </None>
+    <None Include="resources\shaders\rayCasting\rayCastingFlat_frag.glsl">
+      <Filter>resources\shaders\rayCasting</Filter>
+    </None>
+    <None Include="resources\shaders\rayCasting\rayCastingFlat_vert.glsl">
+      <Filter>resources\shaders\rayCasting</Filter>
+    </None>
+    <None Include="resources\shaders\rayCasting\rayCasting_frag.glsl">
+      <Filter>resources\shaders\rayCasting</Filter>
+    </None>
+    <None Include="resources\shaders\rayCasting\rayCasting_vert.glsl">
+      <Filter>resources\shaders\rayCasting</Filter>
+    </None>
+    <None Include="resources\shaders\rayCasting\rayProj_frag.glsl">
+      <Filter>resources\shaders\rayCasting</Filter>
+    </None>
+    <None Include="resources\shaders\rayCasting\rayProj_vert.glsl">
+      <Filter>resources\shaders\rayCasting</Filter>
+    </None>
+    <None Include="resources\shaders\test\texCube_frag.glsl">
+      <Filter>resources\shaders\test</Filter>
+    </None>
+    <None Include="resources\shaders\test\texCube_vert.glsl">
+      <Filter>resources\shaders\test</Filter>
+    </None>
+    <None Include="resources\shaders\test\texShader_frag.glsl">
+      <Filter>resources\shaders\test</Filter>
+    </None>
+    <None Include="resources\shaders\test\texShader_vert.glsl">
+      <Filter>resources\shaders\test</Filter>
+    </None>
+  </ItemGroup>
+</Project>

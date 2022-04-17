@@ -1,0 +1,19 @@
+﻿################################################################################
+# 此 .gitignore 文件已由 Microsoft(R) Visual Studio 自动创建。
+################################################################################
+
+/.vs/tinyVR/v17
+/.vscode
+/bin
+/bin-int
+/GMM_GPU/resources/data
+/IOT/IOT.vcxproj.user
+/IOT/IOT.vcxproj.filters
+/IOT/IOT.vcxproj
+/IOT/imgui.ini
+/tinyVR/vendor
+/tinyVR/tinyVR.vcxproj.user
+/tinyVR/tinyVR.vcxproj.filters
+/tinyVR/tinyVR.vcxproj
+/tinyVR.sln
+/README.md

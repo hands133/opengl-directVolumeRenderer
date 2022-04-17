@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="resources">
+      <UniqueIdentifier>{202B5BA7-8C95-0F1E-D5D3-C0C3417DED72}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="resources\shaders">
+      <UniqueIdentifier>{19081037-851E-0ECD-CE95-99EE3AEBDE54}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="resources\shaders\compute">
+      <UniqueIdentifier>{451D7BBA-B1DF-AE44-FA8F-3DD166918722}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="resources\shaders\render">
+      <UniqueIdentifier>{88C463F9-74E9-B279-9D34-980989B8B197}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="resources\shaders\render\RC">
+      <UniqueIdentifier>{4CAA480E-B8B7-76F4-419E-72DFADAA42AB}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{2DAB880B-99B4-887C-2230-9F7C8E38947C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\files">
+      <UniqueIdentifier>{8F3E2DB5-FBA8-E12B-44E7-92D1B090BF80}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\layers">
+      <UniqueIdentifier>{6C614A68-5819-8CB5-C120-6511ADF726A6}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\files\GMM.h">
+      <Filter>src\files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\files\GMMFile.h">
+      <Filter>src\files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\layers\GMMlayer.h">
+      <Filter>src\layers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utils\threadPool.h" />
+    <ClInclude Include="src\utils\EM_Util.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\files\GMM.cpp">
+      <Filter>src\files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\files\GMMFile.cpp">
+      <Filter>src\files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gmmAPP.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\layers\GMMlayer.cpp">
+      <Filter>src\layers</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="resources\shaders\compute\calculateGlobalHist_comp.glsl">
+      <Filter>resources\shaders\compute</Filter>
+    </None>
+    <None Include="resources\shaders\compute\calculateLocalHistEntropy_comp.glsl">
+      <Filter>resources\shaders\compute</Filter>
+    </None>
+    <None Include="resources\shaders\compute\calculateOctreeNodes_comp.glsl">
+      <Filter>resources\shaders\compute</Filter>
+    </None>
+    <None Include="resources\shaders\compute\calculateSGMMEntropy_comp.glsl">
+      <Filter>resources\shaders\compute</Filter>
+    </None>
+    <None Include="resources\shaders\compute\copyTexture_comp.glsl">
+      <Filter>resources\shaders\compute</Filter>
+    </None>
+    <None Include="resources\shaders\compute\reconstruct3DVolumeByAMR_comp.glsl">
+      <Filter>resources\shaders\compute</Filter>
+    </None>
+    <None Include="resources\shaders\compute\reconstruct3DVolume_comp.glsl">
+      <Filter>resources\shaders\compute</Filter>
+    </None>
+    <None Include="resources\shaders\compute\reconstructTBAMR_flag_comp.glsl">
+      <Filter>resources\shaders\compute</Filter>
+    </None>
+    <None Include="resources\shaders\compute\reconstructTBAMR_refine_comp.glsl">
+      <Filter>resources\shaders\compute</Filter>
+    </None>
+    <None Include="resources\shaders\compute\statisticalDownSampling_comp.glsl">
+      <Filter>resources\shaders\compute</Filter>
+    </None>
+    <None Include="resources\shaders\compute\statisticalMSE_comp.glsl">
+      <Filter>resources\shaders\compute</Filter>
+    </None>
+    <None Include="resources\shaders\compute\statisticalMSSIM_mean_comp.glsl">
+      <Filter>resources\shaders\compute</Filter>
+    </None>
+    <None Include="resources\shaders\compute\statisticalMSSIM_var2_comp.glsl">
+      <Filter>resources\shaders\compute</Filter>
+    </None>
+    <None Include="resources\shaders\render\RC\RC_AMR_frag.glsl">
+      <Filter>resources\shaders\render\RC</Filter>
+    </None>
+    <None Include="resources\shaders\render\RC\RC_AMR_vert.glsl">
+      <Filter>resources\shaders\render\RC</Filter>
+    </None>
+    <None Include="resources\shaders\render\RC\rayCasting_frag.glsl">
+      <Filter>resources\shaders\render\RC</Filter>
+    </None>
+    <None Include="resources\shaders\render\RC\rayCasting_vert.glsl">
+      <Filter>resources\shaders\render\RC</Filter>
+    </None>
+    <None Include="resources\shaders\render\RC\rayProj_frag.glsl">
+      <Filter>resources\shaders\render\RC</Filter>
+    </None>
+    <None Include="resources\shaders\render\RC\rayProj_vert.glsl">
+      <Filter>resources\shaders\render\RC</Filter>
+    </None>
+    <None Include="resources\shaders\compute\reconstructTBAMR_SGMM_comp.glsl" />
+  </ItemGroup>
+</Project>

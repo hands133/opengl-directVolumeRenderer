@@ -1,0 +1,18 @@
+[submodule "include/vendor/glfw"]
+	path = include/vendor/glfw
+	url = https://hub.fastgit.org/glfw/glfw
+[submodule "include/vendor/glm"]
+	path = include/vendor/glm
+	url = https://hub.fastgit.org/g-truc/glm
+[submodule "include/vendor/spdlog"]
+	path = include/vendor/spdlog
+	url = https://hub.fastgit.org/gabime/spdlog.git
+[submodule ".\\tinyVR\\vendor\\imgui"]
+	path = .\\tinyVR\\vendor\\imgui
+	url = https://hub.fastgit.org/TheCherno/imgui
+[submodule ".\\tinyVR\\vendor\\assimp"]
+	path = .\\tinyVR\\vendor\\assimp
+	url = https://hub.fastgit.org/assimp/assimp.git
+[submodule ".\\tinyVR\\vendor\\json"]
+	path = .\\tinyVR\\vendor\\json
+	url = https://github.com/nlohmann/json.git
