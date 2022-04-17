@@ -184,7 +184,6 @@ namespace gmm
 		for (int i = 0; i < gmmList.size(); ++i)
 		{
 			const auto& gmm = gmmList[i];
-			//if (gmm.GetWeight() <= 0)	continue;
 			double P = gmm(sampP);
 			if (P > prob)
 			{

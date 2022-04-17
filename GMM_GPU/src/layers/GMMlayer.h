@@ -36,11 +36,8 @@ namespace gmm {
 		void initGMMFile();
 
 		void initRCComponent();
-
-		// We correct parameters here
-		void CorrGMMFile_CPU();
-
 		void initVolumeTex();
+
 		void reconVol();
 		void calculateHistogram();
 

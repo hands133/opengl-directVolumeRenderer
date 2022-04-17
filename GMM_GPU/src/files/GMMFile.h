@@ -54,9 +54,6 @@ namespace gmm
 			std::copy(binList.begin(), binList.end(), gmmCoeffsList.begin());
 		}
 
-		template <typename T>
-		bool reconstruct(std::vector<T>& vec) const;
-
 		std::vector<std::pair<GMMBrickInfo, GMMBrickData>>::const_iterator begin()	const { return m_dataList.begin(); }
 		std::vector<std::pair<GMMBrickInfo, GMMBrickData>>::const_iterator end()	const { return m_dataList.end(); }
 
@@ -86,24 +83,5 @@ namespace gmm
 
 		std::vector<std::pair<GMMBrickInfo, GMMBrickData>> m_dataList;
 	};
-
-	template <typename T>
-	bool GMMFile::reconstruct(std::vector<T>& vec) const
-	{
-		size_t X = m_resolution.x;
-		size_t Y = m_resolution.y;
-		size_t Z = m_resolution.z;
-		vec.resize(X * Y * Z, T(0));
-
-		for (size_t k = 0; k < Z; ++k)
-			for (size_t j = 0; j < Y; ++j)
-				for (size_t i = 0; i < X; ++i)
-				{
-					size_t idx = k * Y * X + j * X + i;
-					vec[idx] = evalAtPos({ i, j, k });
-				}
-
-		return true;
-	}
 }
 
