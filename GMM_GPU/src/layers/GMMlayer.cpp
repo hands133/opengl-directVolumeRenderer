@@ -62,7 +62,7 @@ namespace gmm {
 		// Reconstruction Quality
 		reconByAMR();
 		measureRMSE();
-		//measureSSIM();
+		measureSSIM();
 	}
 
 	vrGMMLayer::~vrGMMLayer()
