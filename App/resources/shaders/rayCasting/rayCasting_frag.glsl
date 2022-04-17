@@ -41,7 +41,16 @@ void main()
         float v = texture(volume, currentPos).r;
         vec4 tmpColor = texture(tFunc, vec2((v - vMin) / (vMax - vMin), 0.0f));
 
+<<<<<<< HEAD:App/resources/shaders/rayCasting/rayCasting_frag.glsl
         tmpColor.a = 1.0f - pow(1.0f - tmpColor.a, gamma);
+=======
+        if(tmpColor.a > 0.0)
+        {
+            tmpColor.a = 1.0 - pow(1.0 - tmpColor.a, stepSize * 255.0f);
+            color += (1.0 - alpha) * tmpColor.rgb * tmpColor.a;
+            alpha += (1.0 - alpha) * tmpColor.a;
+        }
+>>>>>>> dc9fe76782ec893e2599e16da6008652e0f3a337:resources/shaders/rayCasting_frag.glsl
 
         color += (1.0 - alpha) * tmpColor.rgb * tmpColor.a;
         alpha += (1.0 - alpha) * tmpColor.a;
