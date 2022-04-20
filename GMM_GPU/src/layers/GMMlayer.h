@@ -112,6 +112,7 @@ namespace gmm {
 
 		tinyvr::vrRef<tinyvr::vrShader> m_CalAMRNodesCompShader;
 		tinyvr::vrRef<tinyvr::vrShader> m_CalAMRReconCompShader;
+		tinyvr::vrRef<tinyvr::vrTexture2D> m_AMRMinMaxEntropyRangeTex;
 
 		tinyvr::vrRef<tinyvr::vrShader> m_MeasureRMSECompShader;
 		tinyvr::vrRef<tinyvr::vrShader> m_MeasureSSIMMeanCompShader;
@@ -136,13 +137,14 @@ namespace gmm {
 		tinyvr::vrRef<tinyvr::vrTransferFunction> m_TFVolume, m_TFEntropy;
 		tinyvr::vrRef<tinyvr::vrTransferFunctionWidget> m_TFVolumeWidget, m_TFEntropyWidget;
 
-		tinyvr::vrRef<tinyvr::vrShader> m_AMRRCShader;
+		tinyvr::vrRef<tinyvr::vrShader> m_AMRRCShader, m_DisplayShader;
 		tinyvr::vrRef<tinyvr::vrShader> m_ProjShader, m_RCShader;
-		tinyvr::vrRef<tinyvr::vrVertexArray> m_CubeVA;
+		tinyvr::vrRef<tinyvr::vrVertexArray> m_CubeVA, m_DisplayVA;
 
 		tinyvr::vrRef<tinyvr::vrFrameBuffer> m_ProjInFB, m_ProjOutFB;
-		tinyvr::vrRef<tinyvr::vrFrameBuffer> m_RenderFB;
+		tinyvr::vrRef<tinyvr::vrFrameBuffer> m_RenderFB, m_DisplayFB;
 
+		int m_SaveOpaqueOrNot = 0;
 		/// ============ member for system ============
 		glm::uvec2 m_ScrSize;
 		glm::mat4 m_ModelMat;

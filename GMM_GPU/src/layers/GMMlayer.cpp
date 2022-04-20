@@ -14,6 +14,17 @@
 
 #include <fstream>
 
+#include "../files/lodepng.h"
+
+bool encodePNG(const std::filesystem::path& filePath, const unsigned char* rawImageData, uint32_t width, uint32_t height)
+{
+	// Encode the image
+	unsigned error = lodepng_encode32_file(filePath.string().c_str(), rawImageData, width, height);
+	TINYVR_ASSERT(!error, "ERROR {0:>12}: {1}", error, lodepng_error_text(error));
+	return error;
+
+}
+
 namespace gmm {
 
 	uint32_t maxOctreeDepth = 0;
@@ -90,6 +101,7 @@ namespace gmm {
 				m_ProjInFB->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
 				m_ProjOutFB->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
 				m_RenderFB->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
+				m_DisplayFB->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
 			}
 		}
 
@@ -167,7 +179,7 @@ namespace gmm {
 				tinyvr::vrAPIOPBlendSrc::SRCBLEND_SRCALPHA,
 				tinyvr::vrAPIOPBlendDst::DSTBLEND_ONE_MINUS_SRCALPHA);
 
-			tinyvr::vrRenderCommand::SetClearColor(m_BGColor);
+			tinyvr::vrRenderCommand::SetClearColor(glm::vec4(0.0f));
 			tinyvr::vrRenderCommand::SetClearDepth(1.0);
 			tinyvr::vrRenderCommand::Clear();
 
@@ -214,6 +226,27 @@ namespace gmm {
 			tinyvr::vrRenderer::Submit(m_AMRRCShader, m_CubeVA, m_TrackBall->getDragMat());
 
 			m_RenderFB->Unbind();
+		}
+
+		{	// render to screen, texture
+			m_DisplayFB->Bind();
+
+			tinyvr::vrRenderCommand::EnableDepthTest(tinyvr::vrAPIOPDepth::DEPTH_LESS);
+			tinyvr::vrRenderCommand::EnableCullFace(tinyvr::vrAPIOPFaceCull::CULLFACE_BACK);
+			tinyvr::vrRenderCommand::EnableAlphaBlend(
+				tinyvr::vrAPIOPBlendSrc::SRCBLEND_SRCALPHA,
+				tinyvr::vrAPIOPBlendDst::DSTBLEND_ONE_MINUS_SRCALPHA);
+
+			tinyvr::vrRenderCommand::SetClearColor(m_BGColor);
+			tinyvr::vrRenderCommand::SetClearDepth(1.0);
+			tinyvr::vrRenderCommand::Clear();
+
+			m_DisplayShader->Bind();
+			m_DisplayShader->SetTexture("tex", m_RenderFB->GetColorAttachment(0));
+
+			tinyvr::vrRenderer::Submit(m_DisplayShader, m_DisplayVA);
+
+			m_DisplayFB->Unbind();
 		}
 
 		tinyvr::vrRenderer::EndScene();
@@ -296,6 +329,37 @@ namespace gmm {
 			ImGui::SliderInt("RenderDepth", &m_UserDefinedMaxTreeDepth, 0, maxOctreeDepth, "%01d");
 			ImGui::ColorEdit4("Grid Line Color", glm::value_ptr(m_GridColor));
 
+			ImGui::Separator();
+			ImGui::RadioButton("Opaque", &m_SaveOpaqueOrNot, 0);
+			ImGui::SameLine();
+			ImGui::RadioButton("With BG", &m_SaveOpaqueOrNot, 1);
+
+			if (ImGui::Button("Save Rendered Image As..."))
+			{
+				tinyvr::vrRef<tinyvr::vrTexture2D> tex;
+				if (m_SaveOpaqueOrNot == 0) tex = m_RenderFB->GetColorAttachment(0);
+				else if (m_SaveOpaqueOrNot == 1) tex = m_DisplayFB->GetColorAttachment(0);
+				
+				auto W = tex->GetWidth();
+				auto H = tex->GetHeight();
+				std::vector<glm::vec4> imageBuffer(W * H);
+				tex->GetData(imageBuffer.data());
+
+				std::vector<glm::u8vec4> imageBufferUChar(W * H);
+				std::transform(imageBuffer.begin(), imageBuffer.end(), imageBufferUChar.begin(), 
+					[&](const glm::vec4& pixel)
+					{
+						uint8_t r = static_cast<uint8_t>(pixel.r * 255.999f);
+						uint8_t g = static_cast<uint8_t>(pixel.g * 255.999f);
+						uint8_t b = static_cast<uint8_t>(pixel.b * 255.999f);
+						uint8_t a = static_cast<uint8_t>(pixel.a * 255.999f);
+						return glm::u8vec4(r, g, b, a);
+					});
+
+				if (m_SaveOpaqueOrNot == 0)	encodePNG("S:/SGMM Pic/a_opaque.png", (const unsigned char*)imageBufferUChar.data(), W, H);
+				else if (m_SaveOpaqueOrNot == 1) encodePNG("S:/SGMM Pic/a_withBG.png", (const unsigned char*)imageBufferUChar.data(), W, H);
+			}
+
 			ImGui::End();
 		}
 
@@ -317,7 +381,7 @@ namespace gmm {
 				}
 			}
 
-			ImGui::Image((void*)m_RenderFB->GetColorAttachmentRendererID(), ImVec2{ m_ViewportSize.x, m_ViewportSize.y }, ImVec2{ 0, 1 }, ImVec2{ 1, 0 });
+			ImGui::Image((void*)m_DisplayFB->GetColorAttachmentRendererID(), ImVec2{ m_ViewportSize.x, m_ViewportSize.y }, ImVec2{ 0, 1 }, ImVec2{ 1, 0 });
 
 			m_TFVolumeWidget->draw(m_VolumeHistogram, m_VolumeHistRange);
 			m_TFEntropyWidget->draw(m_EntopyHistogram, m_EntropyHistRange);
@@ -1247,6 +1311,7 @@ namespace gmm {
 			m_ProjShader = tinyvr::vrShader::Create("resources/shaders/render/RC/rayProj_vert.glsl", "resources/shaders/render/RC/rayProj_frag.glsl");
 			m_RCShader = tinyvr::vrShader::Create("resources/shaders/render/RC/rayCasting_vert.glsl", "resources/shaders/render/RC/rayCasting_frag.glsl");
 			m_AMRRCShader = tinyvr::vrShader::Create("resources/shaders/render/RC/RC_AMR_vert.glsl", "resources/shaders/render/RC/RC_AMR_frag.glsl");
+			m_DisplayShader = tinyvr::vrShader::Create("resources/shaders/render/RC/renderTexture_vert.glsl", "resources/shaders/render/RC/renderTexture_frag.glsl");
 		}
 
 		{	// vertex array of cube
@@ -1294,6 +1359,35 @@ namespace gmm {
 		}
 
 		{
+			float texVerts[] =
+			{
+				-1.0f,  1.0f, 0.0f, 1.0f,
+				-1.0f, -1.0f, 0.0f, 0.0f,
+				 1.0f, -1.0f, 1.0f, 0.0f,
+				 1.0f,  1.0f, 1.0f, 1.0f
+			};
+
+			// Cube Vertex Buffer
+			tinyvr::vrRef<tinyvr::vrVertexBuffer> texVB;
+			texVB = tinyvr::vrVertexBuffer::Create(texVerts, sizeof(texVerts));
+
+			m_DisplayVA = tinyvr::vrVertexArray::Create();
+			texVB->SetLayout({
+				{ tinyvr::ShaderDataType::Float2, "a_Position" },
+				{ tinyvr::ShaderDataType::Float2, "a_TexCoord" } });
+			m_DisplayVA->AddVertexBuffer(texVB);
+
+			// Cube Indices Buffer
+			uint32_t texIndices[] = {
+				0, 1, 2,
+				2, 3, 0 };
+
+			tinyvr::vrRef<tinyvr::vrIndexBuffer> texIB;
+			texIB = tinyvr::vrIndexBuffer::Create(texIndices, sizeof(texIndices) / sizeof(uint32_t));
+			m_DisplayVA->SetIndexBuffer(texIB);
+		}
+
+		{
 			auto maxSPAN = std::max({ m_DataRes.x, m_DataRes.y, m_DataRes.z });
 			glm::vec3 scale = glm::vec3(m_DataRes) / glm::vec3(maxSPAN);
 			m_ModelMat = glm::scale(glm::mat4(1.0f), scale);
@@ -1321,6 +1415,9 @@ namespace gmm {
 
 			m_RenderFB = tinyvr::vrFrameBuffer::Create(fbspec);
 			m_RenderFB->CheckStatus();
+
+			m_DisplayFB = tinyvr::vrFrameBuffer::Create(fbspec);
+			m_DisplayFB->CheckStatus();
 		}
 	}
 	
@@ -1401,8 +1498,8 @@ namespace gmm {
 			}
 		}
 
-		{	// [Node Pool]	r: x0  g : y0  b : z0  w : node size
-			// [Pos Pool]	r: [m:1] [f:1] [off_x:15, off_y:15]
+		{	// [Node Pool]	r: [m:1] [f:1] [off_x:15, off_y:15]
+			// [Pos Pool]	r: x0  g : y0  b : z0  w : node size
 			m_TreeNodeTex = tinyvr::vrTexture2D::Create(treeTexWidth, treeTexHeight,
 				tinyvr::vrTextureFormat::TEXTURE_FMT_RED, tinyvr::vrTextureType::TEXTURE_TYPE_U32I);
 			m_TreePosTex = tinyvr::vrTexture2D::Create(treeTexWidth, treeTexHeight,
@@ -1444,7 +1541,7 @@ namespace gmm {
 				//}
 			}
 
-			{	// Data 3 : Deep Water Impact (v03)
+			{	// Data 3 : Deep Water Impact (snd)
 				//float evalveRatio = 0.82;
 				//float evalveRatio = 0.9;
 				//eValveLevel(entropyValves, evalveRatio, { -0.5, m_EntropyRange.y });
@@ -1455,8 +1552,8 @@ namespace gmm {
 			}
 
 			{	// Data 4 : Lap 3D
-				//float evalveRatio = 0.8;
-				//eValveLevel(entropyValves, evalveRatio, { -0.5, m_EntropyRange.y });
+				float evalveRatio = 0.8;
+				eValveLevel(entropyValves, evalveRatio, { 0.0f, m_EntropyRange.y });
 			}
 
 			{	// Data 5 : shock
@@ -1465,9 +1562,15 @@ namespace gmm {
 			}
 
 			{	// Data 6 : plane
-				float evalveRatio = 0.8;
-				eValveLevel(entropyValves, evalveRatio, { -0.5, m_EntropyRange.y });
+				//float evalveRatio = 0.8;
+				//eValveLevel(entropyValves, evalveRatio, { -0.5, m_EntropyRange.y });
 			}
+
+			m_AMRMinMaxEntropyRangeTex = tinyvr::vrTexture2D::Create(maxOctreeDepth, 2,
+				tinyvr::vrTextureFormat::TEXTURE_FMT_RED, tinyvr::vrTextureType::TEXTURE_TYPE_32I);
+			m_AMRMinMaxEntropyRangeTex->SetData(maxOctreeDepth * 2);
+
+			std::vector<glm::vec2> m_entropyRange(maxOctreeDepth);
 
     		for (int i = 0; i < treeMaxDepth - 1; ++i)
 			{
@@ -1476,7 +1579,8 @@ namespace gmm {
 				
 				m_TreeNodeTex->BindImage(0, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_READWRITE);
 				m_TreePosTex->BindImage(1, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_READWRITE);
-				m_LocalEntropyTex->BindUnit(2);
+				m_AMRMinMaxEntropyRangeTex->BindImage(2, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_READWRITE);
+				m_LocalEntropyTex->BindUnit(3);
 
 				m_ConOctreeFlagCompShader->SetInt("texW", treeTexWidth);
 				m_ConOctreeFlagCompShader->SetInt("PS", patchSize);
@@ -1486,7 +1590,12 @@ namespace gmm {
 
 				std::dynamic_pointer_cast<tinyvr::vrOpenGLCompShader>(m_ConOctreeFlagCompShader)
 					->Compute({ std::pow(8, i), 1, 1});
-				
+
+				// step 1.5. fetch min & max Value
+				float minEntropy = tinyvr::vrFrameBuffer::ReadPixelUI(m_AMRMinMaxEntropyRangeTex, glm::ivec2{ i, 0 }) / 1.0e8;
+				float maxEntropy = tinyvr::vrFrameBuffer::ReadPixelUI(m_AMRMinMaxEntropyRangeTex, glm::ivec2{ i, 1 }) / 1.0e8;
+				m_entropyRange[i] = { minEntropy, maxEntropy };
+
 				// step 2. refinement
 				m_ConOctreeRefineCompShader->Bind();
 
@@ -1500,6 +1609,11 @@ namespace gmm {
 				std::dynamic_pointer_cast<tinyvr::vrOpenGLCompShader>(m_ConOctreeRefineCompShader)
 					->Compute({ std::pow(8, i), 8, 1 });
 			}
+
+			std::cout << "Entropy Range : ";
+			for (auto p : m_entropyRange)
+				std::cout << "[" << p.x << ", " << p.y << "] ";
+			std::cout << "\n";
 
 			{	// Octree Statistical
 				m_CalAMRNodesCompShader = tinyvr::vrShader::CreateComp("resources/shaders/compute/calculateOctreeNodes_comp.glsl");

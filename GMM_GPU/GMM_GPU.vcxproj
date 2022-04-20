@@ -94,6 +94,7 @@
   <ItemGroup>
     <ClInclude Include="src\files\GMM.h" />
     <ClInclude Include="src\files\GMMFile.h" />
+    <ClInclude Include="src\files\lodepng.h" />
     <ClInclude Include="src\layers\GMMlayer.h" />
     <ClInclude Include="src\utils\EM_Util.h" />
     <ClInclude Include="src\utils\threadPool.h" />
@@ -101,6 +102,7 @@
   <ItemGroup>
     <ClCompile Include="src\files\GMM.cpp" />
     <ClCompile Include="src\files\GMMFile.cpp" />
+    <ClCompile Include="src\files\lodepng.cpp" />
     <ClCompile Include="src\gmmAPP.cpp" />
     <ClCompile Include="src\layers\GMMlayer.cpp" />
   </ItemGroup>
@@ -125,6 +127,8 @@
     <None Include="resources\shaders\render\RC\rayCasting_vert.glsl" />
     <None Include="resources\shaders\render\RC\rayProj_frag.glsl" />
     <None Include="resources\shaders\render\RC\rayProj_vert.glsl" />
+    <None Include="resources\shaders\render\RC\renderTexture_frag.glsl" />
+    <None Include="resources\shaders\render\RC\renderTexture_vert.glsl" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\tinyVR\tinyVR.vcxproj">
