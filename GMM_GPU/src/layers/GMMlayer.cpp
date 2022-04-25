@@ -16,13 +16,11 @@
 
 #include "../files/lodepng.h"
 
-bool encodePNG(const std::filesystem::path& filePath, const unsigned char* rawImageData, uint32_t width, uint32_t height)
+// Encode the image
+void encodePNG(const std::filesystem::path& filePath, const unsigned char* rawImageData, uint32_t width, uint32_t height)
 {
-	// Encode the image
 	unsigned error = lodepng_encode32_file(filePath.string().c_str(), rawImageData, width, height);
 	TINYVR_ASSERT(!error, "ERROR {0:>12}: {1}", error, lodepng_error_text(error));
-	return error;
-
 }
 
 namespace gmm {
@@ -34,11 +32,16 @@ namespace gmm {
 	vrGMMLayer::vrGMMLayer(
 		const std::string& gmmDataDir, glm::uvec3 brickRes,
 		uint32_t blockSize, glm::uvec3 dataRes,
-		glm::vec2 valueRange, uint32_t numIntervals) :
+		glm::vec2 valueRange, uint32_t numIntervals,
+		// Parameters for octree
+		float rho, float e0,
+		// Parameters for pic output
+		const std::filesystem::path picBaseDir) :
 			m_GMMBaseDir(gmmDataDir), m_BrickRes(brickRes), m_BlockSize(blockSize),
 			m_DataRes(dataRes), m_ValueRange(valueRange), m_NumIntervals(numIntervals),
 			m_ScrSize(1280, 720), m_ModelMat(1.0f), m_BGColor(0.32156862f, 0.34117647f, 0.43137255f, 1.0f),
-			m_MousePos(0.0f), m_ViewportSize(m_ScrSize.x, m_ScrSize.y), m_GAMMA(0.3f), m_EntropyRange(0.0f)
+			m_MousePos(0.0f), m_ViewportSize(m_ScrSize.x, m_ScrSize.y), m_GAMMA(0.3f), m_EntropyRange(0.0f),
+			m_rho(rho), m_e0(e0), m_PicBaseDirPath(picBaseDir)
 	{
 		m_UserDefinedMaxTreeDepth = 0;
 
@@ -57,24 +60,21 @@ namespace gmm {
 		
 		initGMMFile();
 
-		//CorrGMMFile_CPU();
-		//m_GMMFile->WriteToDir("D://SGMMData_Lap3D");
-
 		reconVol();
 		calculateHistogram();
 
-		//storeVolumeDataAsFile();
-
 		initRCComponent();
-
-		// calculate entropy
 		initEntropyComponent();
 
 		constructOctree();
-		// Reconstruction Quality
 		reconByAMR();
+
+		OutputAMRReconVolume("S://SGMM Recon", true);
+		OutputAMRReconVolume("S://SGMM Recon", false);
+
+		// Reconstruction Quality
 		measureRMSE();
-		//measureSSIM();
+		measureNMSE();
 	}
 
 	vrGMMLayer::~vrGMMLayer()
@@ -193,14 +193,12 @@ namespace gmm {
 			if (m_VisVolOrEntropy) {
 				m_AMRRCShader->SetTexture("renderVolume", m_VolumeTex);
 				m_AMRRCShader->SetTexture("tFunc", m_TFVolume->GetTFTexture());
-
 				m_AMRRCShader->SetFloat("vMin", m_ValueRange.x);
 				m_AMRRCShader->SetFloat("vMax", m_ValueRange.y);
 			}
 			else {
-				m_AMRRCShader->SetTexture("renderVolume", m_LocalEntropyTex);
 				m_AMRRCShader->SetTexture("tFunc", m_TFEntropy->GetTFTexture());
-
+				m_AMRRCShader->SetTexture("renderVolume", m_LocalEntropyTex);
 				m_AMRRCShader->SetFloat("vMin", m_EntropyRange.x);
 				m_AMRRCShader->SetFloat("vMax", m_EntropyRange.y);
 			}
@@ -330,15 +328,15 @@ namespace gmm {
 			ImGui::ColorEdit4("Grid Line Color", glm::value_ptr(m_GridColor));
 
 			ImGui::Separator();
-			ImGui::RadioButton("Opaque", &m_SaveOpaqueOrNot, 0);
+			ImGui::RadioButton("Opaque", &m_SaveOpaqueOrNot, 1);
 			ImGui::SameLine();
-			ImGui::RadioButton("With BG", &m_SaveOpaqueOrNot, 1);
+			ImGui::RadioButton("With BG", &m_SaveOpaqueOrNot, 0);
 
 			if (ImGui::Button("Save Rendered Image As..."))
 			{
 				tinyvr::vrRef<tinyvr::vrTexture2D> tex;
-				if (m_SaveOpaqueOrNot == 0) tex = m_RenderFB->GetColorAttachment(0);
-				else if (m_SaveOpaqueOrNot == 1) tex = m_DisplayFB->GetColorAttachment(0);
+				if (m_SaveOpaqueOrNot)	tex = m_RenderFB->GetColorAttachment(0);
+				else					tex = m_DisplayFB->GetColorAttachment(0);
 				
 				auto W = tex->GetWidth();
 				auto H = tex->GetHeight();
@@ -352,14 +350,39 @@ namespace gmm {
 						uint8_t r = static_cast<uint8_t>(pixel.r * 255.999f);
 						uint8_t g = static_cast<uint8_t>(pixel.g * 255.999f);
 						uint8_t b = static_cast<uint8_t>(pixel.b * 255.999f);
-						uint8_t a = static_cast<uint8_t>(pixel.a * 255.999f);
+						uint8_t a = m_SaveOpaqueOrNot ? static_cast<uint8_t>(pixel.a * 255.999f) : 255;
 						return glm::u8vec4(r, g, b, a);
 					});
 
-				if (m_SaveOpaqueOrNot == 0)	encodePNG("S:/SGMM Pic/a_opaque.png", (const unsigned char*)imageBufferUChar.data(), W, H);
-				else if (m_SaveOpaqueOrNot == 1) encodePNG("S:/SGMM Pic/a_withBG.png", (const unsigned char*)imageBufferUChar.data(), W, H);
-			}
+				std::filesystem::path picDirPath = fmt::format("{0}/{1}/{2}",
+					m_PicBaseDirPath.string(),
+					m_VisVolOrEntropy ? "Volume" : "Entropy",
+					m_ClipVolume ? "Slice" : "RC");
 
+				std::string picPrefixName = m_PicBaseDirPath.filename().string();
+				std::string picPrefixRenderType = m_VisVolOrEntropy ? "V" : "E";
+				std::string picPrefixRhoVal = fmt::format("{0}", m_rho);
+				std::string picPrefixOPBG = m_SaveOpaqueOrNot ? "OP" : "BG";
+				std::string picPrefixRenderClip = m_ClipVolume ? "S" : "";
+				std::string picPrefixRenderClipDir = "Z";
+				std::string picPrefixRenderClipPos = fmt::format("{0}", m_ClipPlane);
+
+				if (!std::filesystem::exists(picDirPath))
+					std::filesystem::create_directories(picDirPath);
+
+				std::string saveFileName = "";
+				if (m_ClipVolume)
+					saveFileName = fmt::format("{0}/{1}{2}_{3}_{4}_{5}{6}_{7}",
+						picDirPath.string(), picPrefixName, picPrefixRenderType, picPrefixRhoVal,
+						picPrefixOPBG, picPrefixRenderClip, picPrefixRenderClipDir, picPrefixRenderClipPos);
+				else
+					saveFileName = fmt::format("{0}/{1}{2}_{3}_{4}",
+						picDirPath.string(), picPrefixName, picPrefixRenderType, picPrefixRhoVal, picPrefixOPBG);
+				if (m_ShowGrid)	saveFileName += "_G";
+
+				saveFileName += ".png";
+				encodePNG(saveFileName.c_str(), (const unsigned char*)imageBufferUChar.data(), W, H);
+			}
 			ImGui::End();
 		}
 
@@ -395,6 +418,9 @@ namespace gmm {
 
 	void vrGMMLayer::initParam()
 	{
+		TINYVR_ASSERT(std::filesystem::is_directory(m_GMMBaseDir), "SGMM Dir is not a directory!");
+		if (!std::filesystem::exists(m_PicBaseDirPath))	std::filesystem::create_directories(m_PicBaseDirPath);
+
 		{
 			m_XGap = new int[m_BrickRes.x + 1];
 			m_YGap = new int[m_BrickRes.y + 1];
@@ -434,6 +460,7 @@ namespace gmm {
 			for (int k = 1; k < m_BrickRes.z + 1; ++k)
 				m_ZBlockGap[k] = (m_ZGap[k] - m_ZGap[k - 1]) / m_BlockSize + m_ZBlockGap[k - 1];
 		}
+
 	}
 
 	void vrGMMLayer::initGMMFile()
@@ -445,7 +472,7 @@ namespace gmm {
 		{
 			m_GMMFile = tinyvr::CreateRef<gmm::GMMFile>(m_BlockSize, m_NumIntervals, numBricks);
 
-			TINYVR_ASSERT(m_GMMFile->read(m_GMMBaseDir), "Read data Failed");
+			TINYVR_ASSERT(m_GMMFile->read(m_GMMBaseDir.string()), "Read data Failed");
 			TINYVR_INFO("Load data success!");
 		}
 
@@ -519,30 +546,26 @@ namespace gmm {
 			tinyvr::vrTextureFormat::TEXTURE_FMT_RED, tinyvr::vrTextureType::TEXTURE_TYPE_FLT32);
 		m_VolumeTex->SetData(m_DataRes.x * m_DataRes.y * m_DataRes.z);
 
-		m_CopyVolumeTex = tinyvr::vrTexture3D::Create(m_DataRes.x, m_DataRes.y, m_DataRes.z,
-			tinyvr::vrTextureFormat::TEXTURE_FMT_RED, tinyvr::vrTextureType::TEXTURE_TYPE_FLT32);
-		m_CopyVolumeTex->SetData(m_DataRes.x * m_DataRes.y * m_DataRes.z);
-
 		m_OriginVolumeTex = tinyvr::vrTexture3D::Create(m_DataRes.x, m_DataRes.y, m_DataRes.z,
 			tinyvr::vrTextureFormat::TEXTURE_FMT_RED, tinyvr::vrTextureType::TEXTURE_TYPE_FLT32);
 
 		std::vector<uint8_t> originData(m_DataRes.x * m_DataRes.y * m_DataRes.z, 0x00);
 		m_OriginDataBuffer.resize(m_DataRes.x * m_DataRes.y * m_DataRes.z, 0.0f);
 		
-		//std::ifstream originFile("resources/data/alter/alter-output-8-1-sgmm/unsignedcharVolume.raw", std::ios::binary);
-		//std::ifstream originFile("resources/data/stone/stone-output-8-1-stone-sgmm/unsignedcharVolume.raw", std::ios::binary);
-		//std::ifstream originFile("resources/data/stone/stone-output-8-1-stone2-sgmm/unsignedcharVolume.raw", std::ios::binary);
-		std::ifstream originFile("resources/data/lap3d/lap3d-output-8-1-lap3d-sgmm/unsignedcharVolume.raw", std::ios::binary);
-		//std::ifstream originFile("resources/data/shock/shock-output-8-1-shock-sgmm/unsignedcharVolume.raw", std::ios::binary);
-		//std::ifstream originFile("resources/data/plane/plane-output-8-1-plane-sgmm/unsignedcharVolume.raw", std::ios::binary);
-		TINYVR_ASSERT(originFile, "Open File Failed!");
-		originFile.read((char*)originData.data(), m_DataRes.x * m_DataRes.y * m_DataRes.z);
-		std::copy(originData.begin(), originData.end(), m_OriginDataBuffer.begin());
-		originFile.close();
-
-		//std::ifstream originFile("S:/SGMM Data/snd/unsignedcharVolume.raw", std::ios::binary);
+		// For Isabel & Deep Water Impact
+		//auto originalRawFilePath = m_GMMBaseDir / "unsignedcharVolume.raw";
+		//TINYVR_ASSERT(std::filesystem::exists(originalRawFilePath), "Original volume file Doesn't exist!");
+		//std::ifstream originFile(originalRawFilePath, std::ios::binary);
 		//originFile.read((char*)m_OriginDataBuffer.data(), m_DataRes.x * m_DataRes.y * m_DataRes.z * sizeof(float));
 		//originFile.close();
+
+		auto originalRawFilePath = m_GMMBaseDir / "unsignedcharVolume.raw";
+		TINYVR_ASSERT(std::filesystem::exists(originalRawFilePath), "Original volume file Doesn't exist!");
+		std::ifstream originFile(originalRawFilePath, std::ios::binary);
+		std::vector<uint8_t> originRawBuffer(m_DataRes.x * m_DataRes.y * m_DataRes.z, 0x00);
+		originFile.read((char*)originRawBuffer.data(), m_DataRes.x * m_DataRes.y * m_DataRes.z);
+		originFile.close();
+		std::copy(originRawBuffer.begin(), originRawBuffer.end(), m_OriginDataBuffer.begin());
 
 		m_OriginVolumeTex->SetData(m_DataRes.x * m_DataRes.y * m_DataRes.z, m_OriginDataBuffer.data());
 	}
@@ -578,29 +601,6 @@ namespace gmm {
 
 					std::dynamic_pointer_cast<tinyvr::vrOpenGLCompShader>(m_ReconCompShader)->Compute(R);
 				}
-
-		std::vector<float> fetchBuffer(m_DataRes.x * m_DataRes.y * m_DataRes.z);
-		m_VolumeTex->GetData(fetchBuffer.data());
-
-		auto mM = std::minmax_element(fetchBuffer.begin(), fetchBuffer.end());
-		glm::vec2 r = { *(mM.first), *(mM.second) };
-		
-		tinyvr::vrRef<tinyvr::vrShader> copyCompShader = tinyvr::vrShader::CreateComp("resources/shaders/compute/copyTexture_comp.glsl");
-		copyCompShader->Bind();
-
-		{	// Draw and calculate on original volume
-			//m_VolumeTex->BindImage(0, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_WRITEONLY);
-			//m_OriginVolumeTex->BindUnit(1);
-
-			//std::dynamic_pointer_cast<tinyvr::vrOpenGLCompShader>(copyCompShader)->Compute(m_DataRes);
-		}
-
-		{
-			m_CopyVolumeTex->BindImage(0, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_WRITEONLY);
-			m_VolumeTex->BindUnit(1);
-
-			std::dynamic_pointer_cast<tinyvr::vrOpenGLCompShader>(copyCompShader)->Compute(m_DataRes);
-		}
 	}
 
 	void vrGMMLayer::calculateHistogram()
@@ -609,687 +609,26 @@ namespace gmm {
 			tinyvr::vrTextureFormat::TEXTURE_FMT_RED, tinyvr::vrTextureType::TEXTURE_TYPE_U32I);
 		m_GlobalHistTex->SetData(m_NumIntervals);
 
-		m_GlobalHistCompShader = tinyvr::vrShader::CreateComp("resources/shaders/compute/calculateGlobalHist_comp.glsl");
-		m_GlobalHistCompShader->Bind();
+		//m_GlobalHistCompShader = tinyvr::vrShader::CreateComp("resources/shaders/compute/calculateGlobalHist_comp.glsl");
+		//m_GlobalHistCompShader->Bind();
 
-		m_VolumeTex->BindUnit(0);
-		m_GlobalHistTex->BindImage(1, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_READWRITE);
+		//m_VolumeTex->BindUnit(0);
+		//m_GlobalHistTex->BindImage(1, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_READWRITE);
 
-		m_GlobalHistCompShader->SetFloat("vMin", m_ValueRange.x);
-		m_GlobalHistCompShader->SetFloat("vMax", m_ValueRange.y);
-		m_GlobalHistCompShader->SetInt("NumIntervals", m_NumIntervals);
+		//m_GlobalHistCompShader->SetFloat("vMin", m_ValueRange.x);
+		//m_GlobalHistCompShader->SetFloat("vMax", m_ValueRange.y);
+		//m_GlobalHistCompShader->SetInt("NumIntervals", m_NumIntervals);
 
-		std::dynamic_pointer_cast<tinyvr::vrOpenGLCompShader>(m_GlobalHistCompShader)->Compute(m_DataRes);
+		//std::dynamic_pointer_cast<tinyvr::vrOpenGLCompShader>(m_GlobalHistCompShader)->Compute(m_DataRes);
 
-		std::vector<uint32_t> uBuffer = tinyvr::vrFrameBuffer::ReadPixelsUI(m_GlobalHistTex, { 0, 0 }, { m_NumIntervals - 1, 0 });
+		//std::vector<uint32_t> uBuffer = tinyvr::vrFrameBuffer::ReadPixelsUI(m_GlobalHistTex, { 0, 0 }, { m_NumIntervals - 1, 0 });
 		m_VolumeHistogram.resize(m_NumIntervals, 0);
-		std::transform(uBuffer.begin(), uBuffer.end(), m_VolumeHistogram.begin(), [&](uint32_t v)
-			{	return static_cast<float>(v) / (m_DataRes.x * m_DataRes.y * m_DataRes.z); });
-
-		auto mM = std::minmax_element(m_VolumeHistogram.begin(), m_VolumeHistogram.end());
-		m_VolumeHistRange = { *(mM.first), *(mM.second) };
-	}
-
-	void vrGMMLayer::storeVolumeDataAsFile()
-	{
-		uint32_t N = m_DataRes.x * m_DataRes.y * m_DataRes.z;
-		std::vector<float> reconDataBuffer(N, 0.0f);
-		m_VolumeTex->GetData(reconDataBuffer.data());
-
-		std::ofstream file("D:\\corr.raw", std::ios::binary);
-		file.write(reinterpret_cast<char*>(reconDataBuffer.data()), sizeof(float) * N);
-		file.close();
-	}
-
-	struct mutualStruct
-	{
-		std::array<float, 26> MIs = { 0.0f };
-		std::array<float, 26> Hxys = { 0.0f };
-		std::array<bool, 26> ExceedVol = { false };
-		float binWeightEntropy = 0.0f;
-	};
-
-	void vrGMMLayer::CorrGMMFile_CPU()
-	{
-		uint32_t numBricks = m_BrickRes.x * m_BrickRes.y * m_BrickRes.z;
-		if (m_GMMFile == nullptr)
-		{
-			m_GMMFile = tinyvr::CreateRef<gmm::GMMFile>(m_BlockSize, m_NumIntervals, numBricks);
-
-			TINYVR_ASSERT(m_GMMFile->read(m_GMMBaseDir), "Read data Failed");
-			TINYVR_INFO("Load data success!");
-		}
-		std::cout << *m_GMMFile;
-
-		const std::array<glm::ivec3, 26> Dirs = {{
-				// 6-centers
-				{  1,  0,  0 }, { -1,  0,  0 },
-				{  0,  1,  0 }, {  0, -1,  0 },
-				{  0,  0,  1 }, {  0,  0, -1 },
-				// 8-vertices
-				{  1,  1,  1 }, { -1,  1,  1 },
-				{  1, -1,  1 }, { -1, -1,  1 },
-				{  1,  1, -1 }, { -1,  1, -1 },
-				{  1, -1, -1 }, { -1, -1, -1 },
-				// 12-edges
-				{  1,  1,  0 }, { -1,  1,  0 },
-				{  1, -1,  0 }, { -1, -1,  0 },
-				{  1,  0,  1 }, { -1,  0,  1 },
-				{  1,  0, -1 }, { -1,  0, -1 },
-				{  0,  1,  1 }, {  0, -1,  1 },
-				{  0,  1, -1 }, {  0, -1, -1 },
-			}
-		};
-
-		int numDirs = Dirs.size();
-
-		glm::ivec3 blockRes = { m_XBlockGap[m_BrickRes.x], m_YBlockGap[m_BrickRes.y], m_ZBlockGap[m_BrickRes.z] };
-		uint32_t numBlocks = blockRes.x * blockRes.y * blockRes.z;
-
-		// Prepare Basic Variables
-		std::vector<std::vector<mutualStruct>> blockNeighborInfoPerBrick(numBricks, std::vector<mutualStruct>());
-		std::vector<std::vector<std::vector<float>>> oldBlockBinWeightsPerBrick(
-			numBricks, std::vector<std::vector<float>>());
-
-		// Utility Functions
-		auto GetCoordFromSeqIdx = [&](int idx, glm::ivec3 res) -> glm::ivec3
-		{
-			glm::ivec3 c = glm::ivec3(0);
-			int i = idx;
-			c.z = i / (res.y * res.x);
-			i -= c.z * (res.y * res.x);
-			c.y = i / res.x;
-			i -= c.y * res.x;
-			c.x = i;
-			return c;
-		};
-
-		auto GetSeqIdxFromCoord = [&](glm::ivec3 P, glm::ivec3 res)
-		{
-			return P.z * res.y * res.x + P.y * res.x + P.x;
-		};
-
-		auto CheckExceedRange = [&](glm::ivec3 P, glm::ivec3 res) -> bool
-		{
-			if (P.x < 0 || P.x >= res.x)	return true;
-			if (P.y < 0 || P.y >= res.y)	return true;
-			if (P.z < 0 || P.z >= res.z)	return true;
-			return false;
-		};
-
-		auto SearchWhichBrickInIdx = [&](glm::ivec3 P) ->glm::ivec3
-		{
-			glm::ivec3 brickCoord(0);
-			for (int i = 0; i < m_BrickRes.x; ++i)
-				if (P.x >= m_XBlockGap[i] && P.x < m_XBlockGap[i + 1])
-					brickCoord.x = i;
-
-			for (int j = 0; j < m_BrickRes.y; ++j)
-				if (P.y >= m_YBlockGap[j] && P.y < m_YBlockGap[j + 1])
-					brickCoord.y = j;
-
-			for (int k = 0; k < m_BrickRes.z; ++k)
-				if (P.z >= m_ZBlockGap[k] && P.z < m_ZBlockGap[k + 1])
-					brickCoord.z = k;
-
-			return brickCoord;
-		};
-
-		auto CalMInHxy = [&](const std::vector<float>& ws, uint32_t sampN,
-			const std::vector<float>& nws, uint32_t nsampN)->std::tuple<float, float>
-		{
-			float MI = 0.0f;
-			float Hxy = 0.0f;
-			for (int i = 0; i < m_NumIntervals; ++i)
-			{
-				float px = ws[i];
-				float py = nws[i];
-				float pxy = (px * sampN + py * nsampN) / (sampN + nsampN);
-
-				if (px == 0.0f || py == 0.0f)	continue;
-
-				MI += pxy * log(pxy / (px * py));
-				Hxy += -pxy * log(pxy);
-			}
-			MI = std::max(0.0f, MI);
-			Hxy = std::max(0.0f, Hxy);
-			
-			return std::make_tuple(MI, Hxy);
-		};
-
-		auto CalMInHxyHist = [&](const std::vector<uint32_t>& hist, uint32_t sampN,
-			const std::vector<uint32_t>& nhist, uint32_t nsampN)
-		{
-			float MI = 0.0f;
-			float Hxy = 0.0f;
-			for (int i = 0; i < m_NumIntervals; ++i)
-			{
-				float px = static_cast<float>(hist[i]) / static_cast<float>(sampN);
-				float py = static_cast<float>(nhist[i]) / static_cast<float>(nsampN);
-				float pxy = static_cast<float>(hist[i] + nhist[i]) / static_cast<float>(sampN + nsampN);
-
-				if (px == 0.0f || py == 0.0f)	continue;
-
-				MI += pxy * log(pxy / (px * py));
-				Hxy += -pxy * log(pxy);
-			}
-			MI = std::max(0.0f, MI);
-			Hxy = std::max(0.0f, Hxy);
-
-			return std::make_tuple(MI, Hxy);
-		};
-
-		// Prepare data members
-		auto PrepareMember_SGMMUniHist = [&]()
-		{
-			for (int brickIdx = 0; brickIdx < numBricks; ++brickIdx)
-			{
-				auto brickCoord = GetCoordFromSeqIdx(brickIdx, m_BrickRes);
-
-				glm::ivec3 brickBlockRes = glm::ivec3(
-					m_XBlockGap[brickCoord.x + 1] - m_XBlockGap[brickCoord.x],
-					m_YBlockGap[brickCoord.y + 1] - m_YBlockGap[brickCoord.y],
-					m_ZBlockGap[brickCoord.z + 1] - m_ZBlockGap[brickCoord.z]);
-
-				uint32_t numBrickBlocks = brickBlockRes.x * brickBlockRes.y * brickBlockRes.z;
-
-				auto& brickBlockWeightsList = oldBlockBinWeightsPerBrick[brickIdx];
-				brickBlockWeightsList.resize(numBrickBlocks, std::vector<float>(m_NumIntervals, 0.0f));
-
-				auto& blockNeighborInfoList = blockNeighborInfoPerBrick[brickIdx];
-				blockNeighborInfoList.resize(numBrickBlocks, mutualStruct());
-
-				auto& gmmBrickCoeffs = m_GMMFile->getBrick(brickIdx).second.GMMListPerBlock;
-
-				// initialize weights
-				glm::ivec3 brickVolumeOrigin = glm::ivec3(
-					m_XGap[brickCoord.x], 
-					m_YGap[brickCoord.y], 
-					m_ZGap[brickCoord.z]);
-				for (uint32_t bblockIdx = 0; bblockIdx < numBrickBlocks; ++bblockIdx)
-				{
-					auto& weights = brickBlockWeightsList[bblockIdx];
-					auto& gmmBrickBlockCoeffs = gmmBrickCoeffs[bblockIdx];
-					std::transform(gmmBrickBlockCoeffs.begin(), gmmBrickBlockCoeffs.end(), weights.begin(),
-						[&](const GMMBin& bin) { return bin.GetProb(); });
-
-					auto& blockNeighborInfo = blockNeighborInfoList[bblockIdx];
-					auto brickBlockCoord = GetCoordFromSeqIdx(bblockIdx, brickBlockRes);
-					glm::ivec3 blockVolumeOrigin = brickVolumeOrigin + brickBlockCoord * glm::ivec3(m_BlockSize);
-
-					glm::ivec3 blockSize = glm::ivec3(m_BlockSize);
-					if (brickBlockCoord.x == brickBlockRes.x - 1)
-						blockSize.x += (m_XGap[brickCoord.x + 1] - m_XGap[brickCoord.x]) % m_BlockSize;
-					if (brickBlockCoord.y == brickBlockRes.y - 1)
-						blockSize.y += (m_YGap[brickCoord.y + 1] - m_YGap[brickCoord.y]) % m_BlockSize;
-					if (brickBlockCoord.z == brickBlockRes.z - 1)
-						blockSize.z += (m_ZGap[brickCoord.z + 1] - m_ZGap[brickCoord.z]) % m_BlockSize;
-
-					for (int x = 0; x < blockSize.x; ++x)
-						for (int y = 0; y < blockSize.y; ++y)
-							for (int z = 0; z < blockSize.z; ++z)
-							{
-								glm::ivec3 sampP = blockVolumeOrigin + glm::ivec3(x, y, z);
-								uint32_t sampPSeqIdx = sampP.z * m_DataRes.y * m_DataRes.x + sampP.y * m_DataRes.x + sampP.x;
-
-								float v = m_OriginDataBuffer[sampPSeqIdx];
-								float dv = 1.0f;
-								int I = std::floor(v / dv);
-							}
-				}
-			}
-		};
-		PrepareMember_SGMMUniHist();
-
-		std::vector<std::thread> tPool;
-
-		auto Calculate_MIandPxy = [&](uint32_t brickIdx)
-		{
-			TINYVR_INFO("MIs & Pxy : Brick {0:>4}", brickIdx);
-			auto brickCoord = GetCoordFromSeqIdx(brickIdx, m_BrickRes);
-
-			glm::ivec3 brickBlockOrigin = glm::ivec3(
-				m_XBlockGap[brickCoord.x],
-				m_YBlockGap[brickCoord.y],
-				m_ZBlockGap[brickCoord.z]);
-			glm::ivec3 brickBlockRes = glm::ivec3(
-				m_XBlockGap[brickCoord.x + 1] - m_XBlockGap[brickCoord.x],
-				m_YBlockGap[brickCoord.y + 1] - m_YBlockGap[brickCoord.y],
-				m_ZBlockGap[brickCoord.z + 1] - m_ZBlockGap[brickCoord.z]);
-
-			uint32_t numBrickBlocks = brickBlockRes.x * brickBlockRes.y * brickBlockRes.z;
-			auto& brickBlockWeightsList = oldBlockBinWeightsPerBrick[brickIdx];
-
-			// calculate : mutual information and joint probability
-			auto& blockNeighborInfoList = blockNeighborInfoPerBrick[brickIdx];
-			for (uint32_t bblockIdx = 0; bblockIdx < numBrickBlocks; ++bblockIdx)
-			{
-				auto& blockNeighborInfo = blockNeighborInfoList[bblockIdx];
-
-				glm::ivec3 blockSize = glm::ivec3(m_BlockSize);
-				auto brickBlockCoord = GetCoordFromSeqIdx(bblockIdx, brickBlockRes);
-				if (brickBlockCoord.x == brickBlockRes.x - 1)
-					blockSize.x += (m_XGap[brickCoord.x + 1] - m_XGap[brickCoord.x]) % m_BlockSize;
-				if (brickBlockCoord.y == brickBlockRes.y - 1)
-					blockSize.y += (m_YGap[brickCoord.y + 1] - m_YGap[brickCoord.y]) % m_BlockSize;
-				if (brickBlockCoord.z == brickBlockRes.z - 1)
-					blockSize.z += (m_ZGap[brickCoord.z + 1] - m_ZGap[brickCoord.z]) % m_BlockSize;
-
-				auto& weights = brickBlockWeightsList[bblockIdx];
-				for (uint32_t d = 0; d < numDirs; ++d)
-				{
-					glm::ivec3 Dir = Dirs[d];
-					glm::ivec3 nBlockGlobalCoord = brickBlockCoord + brickBlockOrigin + Dir;
-
-					blockNeighborInfo.ExceedVol[d] = CheckExceedRange(nBlockGlobalCoord, blockRes);
-					if (blockNeighborInfo.ExceedVol[d])		continue;
-
-					glm::ivec3 nBrickIdx = SearchWhichBrickInIdx(nBlockGlobalCoord);
-					glm::ivec3 nBrickOrigin = glm::ivec3(
-						m_XBlockGap[nBrickIdx.x],
-						m_YBlockGap[nBrickIdx.y],
-						m_ZBlockGap[nBrickIdx.z]);
-					glm::ivec3 nBrickRes = glm::ivec3(
-						m_XBlockGap[nBrickIdx.x + 1] - m_XBlockGap[nBrickIdx.x],
-						m_YBlockGap[nBrickIdx.y + 1] - m_YBlockGap[nBrickIdx.y],
-						m_ZBlockGap[nBrickIdx.z + 1] - m_ZBlockGap[nBrickIdx.z]);
-
-					uint32_t nBrickSeqIdx = GetSeqIdxFromCoord(nBrickIdx, m_BrickRes);
-					auto& nBrickBlockWeightsList = oldBlockBinWeightsPerBrick[nBrickSeqIdx];
-
-					glm::ivec3 nBlockOffsetCoord = nBlockGlobalCoord - nBrickOrigin;
-					uint32_t nBlockIdx = nBlockOffsetCoord.z * nBrickRes.y * nBrickRes.x
-						+ nBlockOffsetCoord.y * nBrickRes.x + nBlockOffsetCoord.x;
-					auto& nWeights = nBrickBlockWeightsList[nBlockIdx];
-
-					glm::ivec3 nBlockSize = glm::ivec3(m_BlockSize);
-					auto nBrickBlockCoord = GetCoordFromSeqIdx(bblockIdx, brickBlockRes);
-					if (nBlockOffsetCoord.x == nBrickRes.x - 1)
-						nBlockSize.x += (m_XGap[nBrickIdx.x + 1] - m_XGap[nBrickIdx.x]) % m_BlockSize;
-					if (nBlockOffsetCoord.y == nBrickRes.y - 1)
-						nBlockSize.y += (m_YGap[nBrickIdx.y + 1] - m_YGap[nBrickIdx.y]) % m_BlockSize;
-					if (nBlockOffsetCoord.z == nBrickRes.z - 1)
-						nBlockSize.z += (m_ZGap[nBrickIdx.z + 1] - m_ZGap[nBrickIdx.z]) % m_BlockSize;
-
-					auto [MI, Hxy] = CalMInHxy(weights, blockSize.x * blockSize.y * blockSize.z,
-						nWeights, nBlockSize.x * nBlockSize.y * nBlockSize.z);
-					blockNeighborInfo.MIs[d] = MI;
-					blockNeighborInfo.Hxys[d] = Hxy;
-				}
-			}
-		};
-
-		for (uint32_t brickIdx = 0; brickIdx < numBricks; ++brickIdx)
-			tPool.emplace_back(Calculate_MIandPxy, brickIdx);
-		for (auto& t : tPool)	t.join();
-		tPool.clear();
-		//Calculate_MIandPxy(0);
-
-		// EM Utility Functions
-		using sampStruct = glm::ivec4;
-
-		auto EM_Q = [&](const std::vector<glm::ivec4>& sampData,
-			const std::vector<double>& gamma_ik, GMMBin& bin, int l, int r)->double
-		{
-			double Q = 0.0;
-
-			uint32_t N = r - l + 1;
-			uint32_t K = bin.GetKernelNum();
-
-			double a_1 = 1.5 * std::log(2 * PI_D);
-
-			for (uint32_t k = 0; k < K; ++k)
-			{
-				double ln_ak = std::log(bin.GetKernel(k).weight);
-				glm::dmat3 sigk(0);
-				sigk[0][0] = bin.GetKernel(k).funcs.x.var;
-				sigk[1][1] = bin.GetKernel(k).funcs.y.var;
-				sigk[2][2] = bin.GetKernel(k).funcs.z.var;
-				double ln_sigk = std::log(std::abs(glm::determinant(sigk))) / 2.0;
-
-				for (size_t n = 0; n < N; ++n)
-				{
-					double g_ik = gamma_ik[n * K + k];
-					double ln_gik = std::log(g_ik);
-
-					glm::dvec3 localP;
-					localP.x = sampData[n + l].x;
-					localP.y = sampData[n + l].y;
-					localP.z = sampData[n + l].z;
-
-					glm::dvec3 mu;
-					mu.x = bin.GetKernel(k).funcs.x.mean;
-					mu.y = bin.GetKernel(k).funcs.y.mean;
-					mu.z = bin.GetKernel(k).funcs.z.mean;
-					double sig = glm::dot(localP - mu, glm::inverse(sigk) * (localP - mu)) / 2.0;
-
-					Q += g_ik * (ln_ak - ln_gik - a_1 - ln_sigk - sig);
-				}
-			}
-			return Q;
-		};
-
-		auto EM_UpdateParam = [&](const std::vector<glm::ivec4>& sampData,
-			int l, int r, const std::vector<double>& gamma_ik, GMMBin& bin, float eps)
-		{
-			uint32_t N = r - l + 1;
-			uint32_t K = bin.GetKernelNum();
-
-			for (uint32_t k = 0; k < K; ++k)
-			{
-				double sum_gk = 0.0;
-				for (uint32_t n = 0; n < N; ++n)	sum_gk += gamma_ik[n * K + k];
-
-				double a_k = sum_gk / N;
-
-				// Update Mu
-				glm::dvec3 mu(0.0);
-				for (uint32_t n = 0; n < N; ++n)
-				{
-					glm::dvec3 localP(sampData[n + l].x, sampData[n + l].y, sampData[n + l].z);
-					mu += gamma_ik[n * K + k] * localP;
-				}
-
-				mu /= sum_gk;
-
-				// Update Sigma
-				glm::dvec3 sigma(0.0);
-				for (uint32_t n = 0; n < N; ++n)
-				{
-					glm::dvec3 localP(sampData[n + l].x, sampData[n + l].y, sampData[n + l].z);
-					auto shift = localP - mu;
-
-					sigma += gamma_ik[n * K + k] * (shift * shift);
-				}
-				sigma /= sum_gk;
-
-				for (int i = 0; i < 3; ++i)
-					sigma[i] = std::max(sigma[i], static_cast<double>(std::numeric_limits<float>::epsilon()));
-
-				bin.SetKernelWeight(a_k, k);
-				bin.SetKernelMeans(mu, k);
-				bin.SetKernelVars(sigma, k);
-			}
-		};
-
-		auto EM_Core = [&](const std::vector<glm::ivec4>& sampData, glm::ivec3 blockSize,
-			GMMBin& bin, int l, int r, uint32_t I, float eps)->float
-		{
-			// Init parameters
-			uint32_t N = r - l + 1;
-			uint32_t K = bin.GetKernelNum();
-
-			std::vector<double> gamma_ik(N * K, 0.0);
-			double Q = 0.0;
-
-			uint32_t iter = 0;
-			while (iter++ < I)
-			{
-				// 1. E-step, estimate gamma_ik
-				for (uint32_t n = 0; n < N; ++n)
-				{
-					glm::ivec3 localP(sampData[n + l].x, sampData[n + l].y, sampData[n + l].z);
-
-					for (uint32_t k = 0; k < K; ++k)	gamma_ik[n * K + k] = bin.GetKernel(k)(localP);
-
-					double g_sum = std::accumulate(gamma_ik.begin() + n * K, gamma_ik.begin() + (n + 1) * K, 0.0);
-
-					constexpr double dEPS = std::numeric_limits<double>::epsilon();
-					if (std::abs(g_sum) < dEPS)	for (uint32_t k = 0; k < K; ++k)	gamma_ik[n * K + k] = 1.0 / K;
-					else						for (uint32_t k = 0; k < K; ++k)	gamma_ik[n * K + k] /= g_sum;
-				}
-				// 2. M-step, estimate Parameters
-				EM_UpdateParam(sampData, l, r, gamma_ik, bin, eps);
-
-				double Qt = EM_Q(sampData, gamma_ik, bin, l, r);
-				if (std::abs(Qt - Q) < eps) { Q = Qt;	break;}
-				else						  Q = Qt;
-			}
-			return Q;
-		};
-
-		unsigned long long uniSeed = std::chrono::steady_clock().now().time_since_epoch().count();
-		auto EMRandEngineX = std::mt19937_64(uniSeed + 1);
-		auto EMRandEngineY = std::mt19937_64(uniSeed + 2);
-		auto EMRandEngineZ = std::mt19937_64(uniSeed + 3);
-		std::uniform_real_distribution<double> floatUniformDistribX(-1.0f, 1.0f);
-		std::uniform_real_distribution<double> floatUniformDistribY(-1.0f, 1.0f);
-		std::uniform_real_distribution<double> floatUniformDistribZ(-1.0f, 1.0f);
-
-		auto EM_PerBinDynamic = [&](const std::vector<glm::ivec4>& sampData, glm::ivec3 blockSize,
-			GMMBin& bin, glm::ivec2 range, uint32_t K, uint32_t I, float eps)
-		{
-			std::vector<GMMBin> gmmsToBeChosen(K - 1);
-			std::vector<double> Qs(K - 1, 0.0);
-			std::vector<double> BICs(K - 1, 0.0);
-			for (int k = 1; k < K; ++k)
-			{
-				for (int l = 0; l < k; ++l)
-				{
-					double x0 = floatUniformDistribX(EMRandEngineX) * static_cast<double>(blockSize.x) * 1.5;
-					double y0 = floatUniformDistribY(EMRandEngineY) * static_cast<double>(blockSize.y) * 1.5;
-					double z0 = floatUniformDistribZ(EMRandEngineZ) * static_cast<double>(blockSize.z) * 1.5;
-					gmmsToBeChosen[k - 1].Push(GaussianKernel(1.0f / static_cast<float>(k),					  
-						glm::dvec3(x0, y0, z0), glm::dvec3(8.0)));											  
-				}
-			}
-			// EM for GMM of K-components
-			for (int k = 1; k < K; ++k)
-			{
-				uint32_t numParams = k * (1 + 3 + 3 * (3 + 1) / 2);
-				Qs[k - 1] = EM_Core(sampData, blockSize, gmmsToBeChosen[k - 1], range.x, range.y, I, eps);
-				BICs[k - 1] = numParams * std::log(range.y - range.x + 1) - 2 * Qs[k - 1];
-			}
-
-			auto minBICIter = std::min_element(BICs.begin(), BICs.end());
-			auto minBICIdx = minBICIter - BICs.begin();
-
-			bin = gmmsToBeChosen[minBICIdx];
-		};
-
-		// Bin Weight Correction : Sampling
-		auto Correct_NeighborSampling = [&](uint32_t brickIdx, float e_H, float e_MI)
-		{
-			TINYVR_INFO("Neighbor Sampling : Brick {0:>4}", brickIdx);
-			auto brickCoord = GetCoordFromSeqIdx(brickIdx, m_BrickRes);
-
-			glm::ivec3 brickBlockOrigin = glm::ivec3(
-				m_XBlockGap[brickCoord.x],
-				m_YBlockGap[brickCoord.y],
-				m_ZBlockGap[brickCoord.z]);
-			glm::ivec3 brickBlockRes = glm::ivec3(
-				m_XBlockGap[brickCoord.x + 1] - m_XBlockGap[brickCoord.x],
-				m_YBlockGap[brickCoord.y + 1] - m_YBlockGap[brickCoord.y],
-				m_ZBlockGap[brickCoord.z + 1] - m_ZBlockGap[brickCoord.z]);
-
-			uint32_t numBrickBlocks = brickBlockRes.x * brickBlockRes.y * brickBlockRes.z;
-
-			auto& brickBlockWeightsList = oldBlockBinWeightsPerBrick[brickIdx];
-			auto& blockNeighborInfoList = blockNeighborInfoPerBrick[brickIdx];
-
-			for (uint32_t bblockIdx = 0; bblockIdx < numBrickBlocks; ++bblockIdx)
-			{
-				TINYVR_INFO("Neighbor Sampling : Brick {0:>4} -- Block {1:>4}", brickIdx, bblockIdx);
-
-				auto& blockNeighborInfo = blockNeighborInfoList[bblockIdx];
-				auto& weights = brickBlockWeightsList[bblockIdx];
-
-				// calculate bin weight entropy H and check if should continue
-				float bBinEntropy = 0.0f;
-				for (int i = 0; i < m_NumIntervals; ++i)
-				{
-					float w = weights[i];
-					if (w <= 0.0f)	continue;
-					bBinEntropy += -w * log(w);
-				}
-				bBinEntropy = std::max(0.0f, bBinEntropy);
-				blockNeighborInfo.binWeightEntropy = bBinEntropy;
-				if (bBinEntropy < e_H)	continue;
-
-				auto brickBlockCoord = GetCoordFromSeqIdx(bblockIdx, brickBlockRes);
-				glm::ivec3 blockSize = m_GMMFile->getBlockSize(brickIdx, bblockIdx);
-
-				std::vector<sampStruct> sampList;
-				sampList.reserve(m_BlockSize * m_BlockSize * m_BlockSize * numDirs / 4);
-
-				glm::ivec3 blockVolumeCoord = glm::ivec3(m_XGap[brickCoord.x], m_YGap[brickCoord.y], m_ZGap[brickCoord.z])
-					+ brickBlockCoord * glm::ivec3(m_BlockSize);
-
-				for (int i = 0; i < blockSize.x; ++i)
-					for (int j = 0; j < blockSize.y; ++j)
-						for (int k = 0; k < blockSize.z; ++k)
-						{
-							glm::ivec3 sampP = blockVolumeCoord + glm::ivec3(i, j, k);
-							uint32_t sampPSeqIdx = GetSeqIdxFromCoord(sampP, m_DataRes);
-
-							float v = m_OriginDataBuffer[sampPSeqIdx];
-							float dv = 1.0f;
-							int I = std::floor(v / dv);
-
-							sampList.emplace_back(i, j, k, I);
-						}
-
-				std::unordered_set<uint32_t> neighborSampSeqIdxSet;
-
-				for (uint32_t d = 0; d < numDirs; ++d)
-				{
-					if (blockNeighborInfo.ExceedVol[d])		continue;
-					if (blockNeighborInfo.MIs[d] < e_MI)	continue;
-
-					glm::ivec3 Dir = Dirs[d];
-					glm::ivec3 nBlockGlobalCoord = brickBlockCoord + brickBlockOrigin + Dir;
-
-					glm::ivec3 nBrickIdx = SearchWhichBrickInIdx(nBlockGlobalCoord);
-					glm::ivec3 nBrickOrigin = glm::ivec3(
-						m_XBlockGap[nBrickIdx.x],
-						m_YBlockGap[nBrickIdx.y],
-						m_ZBlockGap[nBrickIdx.z]);
-					glm::ivec3 nBrickRes = glm::ivec3(
-						m_XBlockGap[nBrickIdx.x + 1] - m_XBlockGap[nBrickIdx.x],
-						m_YBlockGap[nBrickIdx.y + 1] - m_YBlockGap[nBrickIdx.y],
-						m_ZBlockGap[nBrickIdx.z + 1] - m_ZBlockGap[nBrickIdx.z]);
-
-					uint32_t nBrickSeqIdx = GetSeqIdxFromCoord(nBrickIdx, m_BrickRes);
-					auto& nBrickBlockWeightsList = oldBlockBinWeightsPerBrick[nBrickSeqIdx];
-
-					glm::ivec3 nBlockOffsetCoord = nBlockGlobalCoord - nBrickOrigin;
-					uint32_t nBlockIdx = GetSeqIdxFromCoord(nBlockOffsetCoord, nBrickRes);
-					auto& nWeights = nBrickBlockWeightsList[nBlockIdx];
-
-					auto nBrickBlockCoord = GetCoordFromSeqIdx(bblockIdx, brickBlockRes);
-					glm::ivec3 nBlockSize = m_GMMFile->getBlockSize(nBrickSeqIdx, nBlockIdx);
-
-					float maxHxy = *std::max_element(blockNeighborInfo.Hxys.begin(), blockNeighborInfo.Hxys.end());
-					float sampRate = (maxHxy == 0.0f) ? 0.0f : 1.0f - blockNeighborInfo.Hxys[d] / maxHxy;
-					int sampN = static_cast<int>(std::floor(sampRate * nBlockSize.x * nBlockSize.y * nBlockSize.z));
-
-					glm::ivec3 nBlockVolumeCoord = nBlockOffsetCoord * glm::ivec3(m_BlockSize) +
-						glm::ivec3(m_XGap[nBrickIdx.x], m_YGap[nBrickIdx.y], m_ZGap[nBrickIdx.z]);
-
-					// sample with replacement
-					unsigned long long int seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
-					std::mt19937_64 rdEngineX(seed + 1);
-					std::mt19937_64 rdEngineY(seed + 2);
-					std::mt19937_64 rdEngineZ(seed + 3);
-					std::uniform_int_distribution<int> rdX(0, nBlockSize.x - 1);
-					std::uniform_int_distribution<int> rdY(0, nBlockSize.y - 1);
-					std::uniform_int_distribution<int> rdZ(0, nBlockSize.z - 1);
-
-					for (int i = 0; i < sampN; ++i)
-					{
-						int x = rdX(rdEngineX);
-						int y = rdY(rdEngineY);
-						int z = rdZ(rdEngineZ);
-
-						glm::ivec3 nsampP = nBlockVolumeCoord + glm::ivec3(x, y, z);
-						uint32_t nsampPSeqIdx = GetSeqIdxFromCoord(nsampP, m_DataRes);
-						neighborSampSeqIdxSet.insert(nsampPSeqIdx);
-
-						float v = m_OriginDataBuffer[nsampPSeqIdx];
-						float dv = 1.0f;
-						int I = std::floor(v / dv);
-
-						sampList.emplace_back(nsampP.x - blockVolumeCoord.x,
-											nsampP.y - blockVolumeCoord.y,
-											nsampP.z - blockVolumeCoord.z, I);
-					}
-					
-					// sample without replacement
-					//unsigned long long int seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
-					//std::mt19937_64 shuffleEngine(seed);
-					//std::uniform_int_distribution<int> rdX;
-
-					//std::vector<sampStruct> nSampWithoutRep;
-					//nSampWithoutRep.reserve(nBlockSize.x * nBlockSize.y * nBlockSize.z);
-					//for (int x = 0; x < nBlockSize.x; ++x)
-					//	for (int y = 0; y < nBlockSize.y; ++y)
-					//		for (int z = 0; z < nBlockSize.z; ++z)
-					//		{
-					//			glm::ivec3 nsampP = nBlockVolumeCoord + glm::ivec3(x, y, z);
-					//			uint32_t sampPSeqIdx = GetSeqIdxFromCoord(sampP, m_DataRes);
-
-					//			float v = m_OriginDataBuffer[nsampPSeqIdx];
-					//			float dv = 1.0f;
-					//			int I = std::floor(v / dv);
-
-					//			nSampWithoutRep.emplace_back(nsampP.x, nsampP.y, nsampP.z, I);
-					//		}
-
-					//std::shuffle(nSampWithoutRep.begin(), nSampWithoutRep.end(), shuffleEngine);
-					//for (int i = 0; i < sampN; ++i)	sampList.emplace_back(
-					//	nSampWithoutRep[i].x - blockVolumeCoord.x,
-					//	nSampWithoutRep[i].y - blockVolumeCoord.y,
-					//	nSampWithoutRep[i].z - blockVolumeCoord.z, nSampWithoutRep[i].w);
-				}
-
-				if (sampList.size() == blockSize.x * blockSize.y * blockSize.z)	continue;
-
-				std::sort(sampList.begin(), sampList.end(),
-					[&](const glm::ivec4& lhs, const glm::ivec4& rhs) {	return lhs.w < rhs.w; });
-
-				std::vector<GMMBin> gmmBinList(m_NumIntervals);
-				for (size_t binIdx = 0; binIdx < m_NumIntervals; ++binIdx)
-				{
-					auto range = EM_Util::ValueRange(sampList, binIdx);
-					if (range == glm::ivec2(-1, -1))	continue;
-
-					uint32_t Nk = range.y - range.x + 1;
-					uint32_t N = sampList.size();
-					auto& bin = gmmBinList[binIdx];
-
-					double binWeight = static_cast<double>(Nk) / N;
-					EM_PerBinDynamic(sampList, blockSize, bin, range, 4, 1000, 1e-4);
-
-					double binWeightSum = 0.0;
-					for (int x = 0; x < blockSize.x; ++x)
-						for (int y = 0; y < blockSize.y; ++y)
-							for (int z = 0; z < blockSize.z; ++z)
-							{
-								glm::dvec3 sampP = glm::dvec3(x, y, z);
-								binWeightSum += bin.EvalWithoutProb(sampP);
-							}
-
-					for (auto pointSeqIdx : neighborSampSeqIdxSet)
-					{
-						glm::ivec3 pointVolumeCoord = GetCoordFromSeqIdx(pointSeqIdx, m_DataRes);
-						glm::dvec3 nsampP = pointVolumeCoord - blockVolumeCoord;
-						binWeightSum += bin.EvalWithoutProb(nsampP);
-					}
-
-					gmmBinList[binIdx].SetProb(binWeight / binWeightSum);
-				}
-				m_GMMFile->UpdateGMMBinCoeffs(brickIdx, bblockIdx, gmmBinList);
-			}
-		};
-
-		float e_H = 0.0f;
-		float e_MI = 0.0f;
-		for (uint32_t brickIdx = 0; brickIdx < numBricks; ++brickIdx)
-			tPool.emplace_back(Correct_NeighborSampling, brickIdx, e_H, e_MI);
-		for (auto& t : tPool)	t.join();
-		tPool.clear();
-
-		return;
+		//std::transform(uBuffer.begin(), uBuffer.end(), m_VolumeHistogram.begin(), [&](uint32_t v)
+			//{	return static_cast<float>(v) / (m_DataRes.x * m_DataRes.y * m_DataRes.z); });
+
+		//auto mM = std::minmax_element(m_VolumeHistogram.begin(), m_VolumeHistogram.end());
+		//m_VolumeHistRange = { *(mM.first), *(mM.second) };
+		m_VolumeHistRange = m_ValueRange;
 	}
 
 	void vrGMMLayer::initRCComponent()
@@ -1378,7 +717,7 @@ namespace gmm {
 			m_DisplayVA->AddVertexBuffer(texVB);
 
 			// Cube Indices Buffer
-			uint32_t texIndices[] = {
+			uint32_t texIndices[] = { 
 				0, 1, 2,
 				2, 3, 0 };
 
@@ -1394,6 +733,8 @@ namespace gmm {
 			m_ModelMat = glm::rotate(glm::mat4(1.0f), glm::radians(180.0f), { 0.0f, 1.0f, 0.0f }) * m_ModelMat;
 
 			// Isabel : none
+			//m_ModelMat = glm::rotate(glm::mat4(1.0f), glm::radians(180.0f), { 0.0f, 1.0f, 0.0f }) * m_ModelMat;
+			// Deep Water Impact
 			// Asteroid : v02
 			//m_ModelMat = glm::rotate(glm::mat4(1.0f), glm::radians(45.0f), { 0.0f, 1.0f, 0.0f }) * m_ModelMat;
 			// Asteroid : v03
@@ -1428,8 +769,22 @@ namespace gmm {
 				tinyvr::vrTextureFormat::TEXTURE_FMT_RED);
 			m_LocalEntropyTex->SetData(m_DataRes.x * m_DataRes.y * m_DataRes.z, nullptr);
 			
+			//{	// calculate entropy using local histogram
+			//	m_EntropyLocalHistCompShader = tinyvr::vrShader::CreateComp("resources/shaders/compute/calculateLocalHistEntropy_comp.glsl");
+			//	m_EntropyLocalHistCompShader->Bind();
+
+			//	m_LocalEntropyTex->BindImage(0, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_WRITEONLY);
+			//	m_VolumeTex->BindUnit(1);
+
+			//	m_EntropyLocalHistCompShader->SetFloat("vMin", m_ValueRange.x);
+			//	m_EntropyLocalHistCompShader->SetFloat("vMax", m_ValueRange.y);
+			//	m_EntropyLocalHistCompShader->SetInt("NumIntervals", m_NumIntervals);
+			//	m_EntropyLocalHistCompShader->SetInt("StencilSize", 5);
+
+			//	std::dynamic_pointer_cast<tinyvr::vrOpenGLCompShader>(m_EntropyLocalHistCompShader)->Compute(m_DataRes);
+			//}			
 			{	// calculate entropy using local histogram
-				m_EntropyLocalHistCompShader = tinyvr::vrShader::CreateComp("resources/shaders/compute/calculateLocalHistEntropy_comp.glsl");
+				m_EntropyLocalHistCompShader = tinyvr::vrShader::CreateComp("resources/shaders/compute/calculateEntropyPerBrick_comp.glsl");
 				m_EntropyLocalHistCompShader->Bind();
 
 				m_LocalEntropyTex->BindImage(0, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_WRITEONLY);
@@ -1438,9 +793,23 @@ namespace gmm {
 				m_EntropyLocalHistCompShader->SetFloat("vMin", m_ValueRange.x);
 				m_EntropyLocalHistCompShader->SetFloat("vMax", m_ValueRange.y);
 				m_EntropyLocalHistCompShader->SetInt("NumIntervals", m_NumIntervals);
-				m_EntropyLocalHistCompShader->SetInt("StencilSize", 5);
+				m_EntropyLocalHistCompShader->SetInt3("dataRes", m_DataRes);
+				m_EntropyLocalHistCompShader->SetInt("SS", 5);
 
-				std::dynamic_pointer_cast<tinyvr::vrOpenGLCompShader>(m_EntropyLocalHistCompShader)->Compute(m_DataRes);
+				for (int i = 0; i < m_BrickRes.x; ++i)
+					for (int j = 0; j < m_BrickRes.y; ++j)
+						for (int k = 0; k < m_BrickRes.z; ++k)
+						{
+							auto O = glm::ivec3(m_XGap[i], m_YGap[j], m_ZGap[k]);
+							auto R = glm::ivec3(m_XGap[i + 1] - m_XGap[i],
+												m_YGap[j + 1] - m_YGap[j],
+												m_ZGap[k + 1] - m_ZGap[k]);
+
+							m_EntropyLocalHistCompShader->SetInt3("O", O);
+							m_EntropyLocalHistCompShader->SetInt3("R", R);
+
+							std::dynamic_pointer_cast<tinyvr::vrOpenGLCompShader>(m_EntropyLocalHistCompShader)->Compute(R);
+						}
 			}
 
 			//{	// calculate GMM differential entropy
@@ -1474,11 +843,14 @@ namespace gmm {
 			//			}
 			//}
 		}
-		m_EntopyHistogram = m_LocalEntropyTex->GetHistogram(m_NumIntervals);
-		auto mM = std::minmax_element(m_EntopyHistogram.begin(), m_EntopyHistogram.end());
-		m_EntropyHistRange = { *(mM.first), *(mM.second) };
+		//m_EntopyHistogram = m_LocalEntropyTex->GetHistogram(m_NumIntervals);
+		//auto mM = std::minmax_element(m_EntopyHistogram.begin(), m_EntopyHistogram.end());
+		//m_EntropyHistRange = { *(mM.first), *(mM.second) };
+		m_EntopyHistogram.resize(m_NumIntervals, 0);
+		m_EntropyHistRange = m_EntropyRange;
 
-		m_EntropyRange = m_LocalEntropyTex->GlobalMinMaxVal();
+		//m_EntropyRange = m_LocalEntropyTex->GlobalMinMaxVal();
+		m_EntropyRange = glm::vec2(0, 4.8);
 		TINYVR_CORE_INFO("Entropy range : [{0:>8.4}, {1:>8.4}]", m_EntropyRange.x, m_EntropyRange.y);
 	}
 	
@@ -1509,68 +881,61 @@ namespace gmm {
 			m_TreePosTex->SetData(treeTexWidth * treeTexHeight);
 		}
 
+		std::vector<glm::vec2> ERangePerLayer(treeMaxDepth, glm::vec2(0));
+		{
+			m_AMRMinMaxEntropyRangeTex = tinyvr::vrTexture2D::Create(treeMaxDepth, 2,
+				tinyvr::vrTextureFormat::TEXTURE_FMT_RED, tinyvr::vrTextureType::TEXTURE_TYPE_32I);
+			m_AMRMinMaxEntropyRangeTex->SetData(treeMaxDepth * 2);
+
+			// calculate entropy value range at each level
+			auto minmaxEntropyCompShader = tinyvr::vrShader::CreateComp("resources/shaders/compute/reconstructTBAMR_EntropyRange_comp.glsl");
+
+			for (int i = 0; i < treeMaxDepth; ++i)
+			{
+				minmaxEntropyCompShader->Bind();
+
+				m_AMRMinMaxEntropyRangeTex->BindImage(0, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_READWRITE);
+				m_LocalEntropyTex->BindUnit(1);
+
+				minmaxEntropyCompShader->SetInt("currentLevel", i);
+				minmaxEntropyCompShader->SetInt("texW", treeTexWidth);
+				minmaxEntropyCompShader->SetInt("PS", patchSize);
+
+				std::dynamic_pointer_cast<tinyvr::vrOpenGLCompShader>(minmaxEntropyCompShader)
+					->Compute({ std::pow(8, i), 8, 1 });
+
+				float minEntropy = tinyvr::vrFrameBuffer::ReadPixelUI(m_AMRMinMaxEntropyRangeTex, glm::ivec2{ i, 0 }) / 1.0e8;
+				float maxEntropy = tinyvr::vrFrameBuffer::ReadPixelUI(m_AMRMinMaxEntropyRangeTex, glm::ivec2{ i, 1 }) / 1.0e8;
+				ERangePerLayer[i] = { minEntropy, maxEntropy };
+			}
+
+			std::cout << "Entropy Range : ";
+			for (auto p : ERangePerLayer)
+				std::cout << "[" << p.x << ", " << p.y << "] ";
+			std::cout << "\n";
+		}
+
+		glm::vec2 EMinMax = { 0.0f, std::log(5 * 5 * 5) };
 		{
 			m_ConOctreeFlagCompShader = tinyvr::vrShader::CreateComp("resources/shaders/compute/reconstructTBAMR_flag_comp.glsl");
 			m_ConOctreeRefineCompShader = tinyvr::vrShader::CreateComp("resources/shaders/compute/reconstructTBAMR_refine_comp.glsl");
 
+			std::vector<float> entropyValves(treeMaxDepth, 0.0f);
+
 			auto eValveLevel = [&](std::vector<float>& eBuffer, float R, glm::vec2 range)
 			{
 				for (int i = 0; i < eBuffer.size(); ++i)
-					eBuffer[i] = (range.y - range.x) * (1.0 - pow(R, i)) + range.x;
+				{
+					float ri = pow(R, i);
+					//float ei = (1.0 - ri) * EMinMax.y + ri * EMinMax.x;
+					float ei = (1.0 - ri) * EMinMax.y + ri * range.x;
 
-				fmt::print("Entropy Param : [{0:>8.6}]\n", fmt::join(eBuffer, ","));
+					glm::vec2 Ri = ERangePerLayer[i];
+					eBuffer[i] = (Ri.y - Ri.x) / (EMinMax.y - EMinMax.x) * (ei - EMinMax.x) + Ri.x;
+				}
 			};
 
-			std::vector<float> entropyValves(maxOctreeDepth, 0.0f);
-
-			{	// Data 1 : Isabel
-				//float evalveRatio = 0.685;
-				//float evalveRatio = 0.0;
-				//float evalveRatio = 0.72;
-				//float evalveRatio = 0.78;
-				//eValveLevel(entropyValves, evalveRatio, { 0.67, m_EntropyRange.y });
-			}
-			
-			{	// Data 2 : Deep Water Impact (v02)
-				//float evalveRatio = 0.75;
-				//float evalveRatio = 0.72;
-				//eValveLevel(entropyValves, evalveRatio, { 0.6, m_EntropyRange.y });
-				//{
-					//float evalveRatio = 0.80;
-					//eValveLevel(entropyValves, evalveRatio, m_EntropyRange);
-				//}
-			}
-
-			{	// Data 3 : Deep Water Impact (snd)
-				//float evalveRatio = 0.82;
-				//float evalveRatio = 0.9;
-				//eValveLevel(entropyValves, evalveRatio, { -0.5, m_EntropyRange.y });
-				//{
-					//float evalveRatio = 0.9;
-					//eValveLevel(entropyValves, evalveRatio, m_EntropyRange);
-				//}
-			}
-
-			{	// Data 4 : Lap 3D
-				float evalveRatio = 0.8;
-				eValveLevel(entropyValves, evalveRatio, { 0.0f, m_EntropyRange.y });
-			}
-
-			{	// Data 5 : shock
-				//float evalveRatio = 0.8;
-				//eValveLevel(entropyValves, evalveRatio, { -0.5, m_EntropyRange.y });
-			}
-
-			{	// Data 6 : plane
-				//float evalveRatio = 0.8;
-				//eValveLevel(entropyValves, evalveRatio, { -0.5, m_EntropyRange.y });
-			}
-
-			m_AMRMinMaxEntropyRangeTex = tinyvr::vrTexture2D::Create(maxOctreeDepth, 2,
-				tinyvr::vrTextureFormat::TEXTURE_FMT_RED, tinyvr::vrTextureType::TEXTURE_TYPE_32I);
-			m_AMRMinMaxEntropyRangeTex->SetData(maxOctreeDepth * 2);
-
-			std::vector<glm::vec2> m_entropyRange(maxOctreeDepth);
+			eValveLevel(entropyValves, m_rho, { m_e0, m_EntropyRange.y });
 
     		for (int i = 0; i < treeMaxDepth - 1; ++i)
 			{
@@ -1579,22 +944,16 @@ namespace gmm {
 				
 				m_TreeNodeTex->BindImage(0, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_READWRITE);
 				m_TreePosTex->BindImage(1, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_READWRITE);
-				m_AMRMinMaxEntropyRangeTex->BindImage(2, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_READWRITE);
-				m_LocalEntropyTex->BindUnit(3);
+				m_LocalEntropyTex->BindUnit(2);
 
 				m_ConOctreeFlagCompShader->SetInt("texW", treeTexWidth);
 				m_ConOctreeFlagCompShader->SetInt("PS", patchSize);
-
+				
 				m_ConOctreeFlagCompShader->SetFloat("eValve", entropyValves[i]);
 				m_ConOctreeFlagCompShader->SetInt("currentLevel", i);  
 
 				std::dynamic_pointer_cast<tinyvr::vrOpenGLCompShader>(m_ConOctreeFlagCompShader)
 					->Compute({ std::pow(8, i), 1, 1});
-
-				// step 1.5. fetch min & max Value
-				float minEntropy = tinyvr::vrFrameBuffer::ReadPixelUI(m_AMRMinMaxEntropyRangeTex, glm::ivec2{ i, 0 }) / 1.0e8;
-				float maxEntropy = tinyvr::vrFrameBuffer::ReadPixelUI(m_AMRMinMaxEntropyRangeTex, glm::ivec2{ i, 1 }) / 1.0e8;
-				m_entropyRange[i] = { minEntropy, maxEntropy };
 
 				// step 2. refinement
 				m_ConOctreeRefineCompShader->Bind();
@@ -1609,13 +968,10 @@ namespace gmm {
 				std::dynamic_pointer_cast<tinyvr::vrOpenGLCompShader>(m_ConOctreeRefineCompShader)
 					->Compute({ std::pow(8, i), 8, 1 });
 			}
+			fmt::print("Entropy Param : [{0:>8.6}]\n", fmt::join(entropyValves, ","));
 
-			std::cout << "Entropy Range : ";
-			for (auto p : m_entropyRange)
-				std::cout << "[" << p.x << ", " << p.y << "] ";
-			std::cout << "\n";
-
-			{	// Octree Statistical
+			// Octree Statistical
+			{	
 				m_CalAMRNodesCompShader = tinyvr::vrShader::CreateComp("resources/shaders/compute/calculateOctreeNodes_comp.glsl");
 				m_CalAMRNodesCompShader->Bind();
 
@@ -1633,10 +989,23 @@ namespace gmm {
 				auto nInnerNodes = tinyvr::vrFrameBuffer::ReadPixelUI(m_TreeNodeTex, glm::ivec2(1, 0));
 				auto nLeafNodes = tinyvr::vrFrameBuffer::ReadPixelUI(m_TreeNodeTex, glm::ivec2(2, 0));
 
-				TINYVR_INFO("Build TB-AMR Finished, with inner nodes = {0:>8}, "
-					"leaf nodes = {1:>8}, total {2:>8} nodes, {3:>10} uints occupied\n",
+				uint32_t nBytesLT256 = nInnerNodes + (patchSize * patchSize * patchSize) * nLeafNodes / 4;
+				uint32_t nBytesGT256 = nInnerNodes + (patchSize * patchSize * patchSize) * nLeafNodes / 2;
+				uint32_t tBytesLT256 = (patchSize * patchSize * patchSize) * (nInnerNodes + nLeafNodes) / 4;
+				uint32_t tBytesGT256 = (patchSize * patchSize * patchSize) * (nInnerNodes + nLeafNodes) / 2;
+				uint32_t nOriginBytes = m_DataRes.x * m_DataRes.y * m_DataRes.z * sizeof(float);
+
+				TINYVR_INFO("Build TB-AMR Finished, with inner nodes = {0:>8},\n"
+					"\tleaf nodes = {1:>8}, total {2:>8} nodes,\n"
+					"\t{3:>10} uints with NumIntervals <= 256, compRatio = {4}\n"
+					"\t{5:>10} uints with NumIntervals  > 256, compRatio = {6}\n"
+					"\t\ttotal {7:>10} uints with NumIntervals  > 256, compRatio = {8}\n"
+					"\t\ttotal {9:>10} uints with NumIntervals  > 256, compRatio = {10}\n",
 					nInnerNodes, nLeafNodes, nInnerNodes + nLeafNodes, 
-					nInnerNodes + (patchSize * patchSize * patchSize) * nLeafNodes / 4);
+					nBytesLT256, 1.0f * nOriginBytes / nBytesLT256,
+					nBytesGT256, 1.0f * nOriginBytes / nBytesGT256,
+					tBytesLT256, 1.0f * nOriginBytes / tBytesLT256,
+					tBytesGT256, 1.0f * nOriginBytes / tBytesGT256);
 			}
 		}
 	}
@@ -1647,195 +1016,145 @@ namespace gmm {
 			tinyvr::vrTextureFormat::TEXTURE_FMT_RED, tinyvr::vrTextureType::TEXTURE_TYPE_FLT32);
 		m_ReconVolumeByAMRTex->SetData(m_DataRes.x * m_DataRes.y * m_DataRes.z);
 		
-		m_CalAMRReconCompShader = tinyvr::vrShader::CreateComp("resources/shaders/compute/reconstruct3DVolumeByAMR_Comp.glsl");
-		m_CalAMRReconCompShader->Bind();
-
-		m_ReconVolumeByAMRTex->BindImage(0, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_WRITEONLY);
-		m_VolumeTex->BindUnit(1);
-
-		m_TreeNodeTex->BindUnit(2);
-		m_TreePosTex->BindUnit(3);
-
-		m_CalAMRReconCompShader->SetInt3("dataRes", m_DataRes);
-		m_CalAMRReconCompShader->SetInt("B", m_BlockSize);
-		m_CalAMRReconCompShader->SetInt("PS", patchSize);
-
-		std::dynamic_pointer_cast<tinyvr::vrOpenGLCompShader>(m_CalAMRReconCompShader)->Compute(m_DataRes);
-
-		//m_CalAMRReconCompShader = tinyvr::vrShader::CreateComp("resources/shaders/compute/reconstructTBAMR_SGMM_comp.glsl");
+		//m_CalAMRReconCompShader = tinyvr::vrShader::CreateComp("resources/shaders/compute/reconstruct3DVolumeByAMR_Comp.glsl");
 		//m_CalAMRReconCompShader->Bind();
 
 		//m_ReconVolumeByAMRTex->BindImage(0, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_WRITEONLY);
+		//m_VolumeTex->BindUnit(1);
 
-		//m_TreeNodeTex->BindUnit(1);
-		//m_TreePosTex->BindUnit(2);
+		//m_TreeNodeTex->BindUnit(2);
+		//m_TreePosTex->BindUnit(3);
 
-		//for (int i = 0; i < m_GMMCoeffTexturesList.size(); ++i)
-		//	m_GMMCoeffTexturesList[i]->BindUnit(i + 3);
-
+		//m_CalAMRReconCompShader->SetInt3("dataRes", m_DataRes);
 		//m_CalAMRReconCompShader->SetInt("B", m_BlockSize);
 		//m_CalAMRReconCompShader->SetInt("PS", patchSize);
 
-		//m_CalAMRReconCompShader->SetInt("NumIntervals", m_NumIntervals);
-		//m_CalAMRReconCompShader->SetInt("NumBricks", m_BrickRes.x * m_BrickRes.y * m_BrickRes.z);
+		//std::dynamic_pointer_cast<tinyvr::vrOpenGLCompShader>(m_CalAMRReconCompShader)->Compute(m_DataRes);
 
-		//m_CalAMRReconCompShader->SetInt3("BrickRes", m_BrickRes);
-		//m_CalAMRReconCompShader->SetInt3("DataRes", m_DataRes);
+		m_CalAMRReconCompShader = tinyvr::vrShader::CreateComp("resources/shaders/compute/reconstructTBAMR_SGMM_comp.glsl");
+		m_CalAMRReconCompShader->Bind();
 
-		//m_CalAMRReconCompShader->SetInts("XGap", m_XGap, m_BrickRes.x + 1);
-		//m_CalAMRReconCompShader->SetInts("YGap", m_YGap, m_BrickRes.y + 1);
-		//m_CalAMRReconCompShader->SetInts("ZGap", m_ZGap, m_BrickRes.z + 1);
+		m_ReconVolumeByAMRTex->BindImage(0, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_WRITEONLY);
 
-		//m_CalAMRReconCompShader->SetInts("XBlockGap", m_XBlockGap, m_BrickRes.x + 1);
-		//m_CalAMRReconCompShader->SetInts("YBlockGap", m_YBlockGap, m_BrickRes.y + 1);
-		//m_CalAMRReconCompShader->SetInts("ZBlockGap", m_ZBlockGap, m_BrickRes.z + 1);
+		m_TreeNodeTex->BindUnit(1);
+		m_TreePosTex->BindUnit(2);
 
-		//for (int i = 0; i < m_BrickRes.x; ++i)
-		//	for (int j = 0; j < m_BrickRes.y; ++j)
-		//		for (int k = 0; k < m_BrickRes.z; ++k)
-		//		{
-		//			auto O = glm::ivec3(m_XGap[i], m_YGap[j], m_ZGap[k]);
-		//			auto R = glm::ivec3(m_XGap[i + 1], m_YGap[j + 1], m_ZGap[k + 1]) - O;
+		for (int i = 0; i < m_GMMCoeffTexturesList.size(); ++i)
+			m_GMMCoeffTexturesList[i]->BindUnit(i + 3);
 
-		//			m_CalAMRReconCompShader->SetInt3("O", O);
-		//			m_CalAMRReconCompShader->SetInt3("R", R);
+		m_CalAMRReconCompShader->SetInt("B", m_BlockSize);
+		m_CalAMRReconCompShader->SetInt("PS", patchSize);
 
-		//			m_CalAMRReconCompShader->SetInt("BRICK_IDX", k * m_BrickRes.y * m_BrickRes.x + j * m_BrickRes.x + i);
+		m_CalAMRReconCompShader->SetFloat("vMin", m_ValueRange.x);
+		m_CalAMRReconCompShader->SetFloat("vMax", m_ValueRange.y);
 
-		//			std::dynamic_pointer_cast<tinyvr::vrOpenGLCompShader>(m_CalAMRReconCompShader)->Compute(R);
-		//		}
+		m_CalAMRReconCompShader->SetInt("NumIntervals", m_NumIntervals);
+		m_CalAMRReconCompShader->SetInt("NumBricks", m_BrickRes.x * m_BrickRes.y * m_BrickRes.z);
+
+		m_CalAMRReconCompShader->SetInt3("BrickRes", m_BrickRes);
+		m_CalAMRReconCompShader->SetInt3("DataRes", m_DataRes);
+
+		m_CalAMRReconCompShader->SetInts("XGap", m_XGap, m_BrickRes.x + 1);
+		m_CalAMRReconCompShader->SetInts("YGap", m_YGap, m_BrickRes.y + 1);
+		m_CalAMRReconCompShader->SetInts("ZGap", m_ZGap, m_BrickRes.z + 1);
+
+		m_CalAMRReconCompShader->SetInts("XBlockGap", m_XBlockGap, m_BrickRes.x + 1);
+		m_CalAMRReconCompShader->SetInts("YBlockGap", m_YBlockGap, m_BrickRes.y + 1);
+		m_CalAMRReconCompShader->SetInts("ZBlockGap", m_ZBlockGap, m_BrickRes.z + 1);
+
+		for (int i = 0; i < m_BrickRes.x; ++i)
+			for (int j = 0; j < m_BrickRes.y; ++j)
+				for (int k = 0; k < m_BrickRes.z; ++k)
+				{
+					auto O = glm::ivec3(m_XGap[i], m_YGap[j], m_ZGap[k]);
+					auto R = glm::ivec3(m_XGap[i + 1], m_YGap[j + 1], m_ZGap[k + 1]) - O;
+
+					m_CalAMRReconCompShader->SetInt3("O", O);
+					m_CalAMRReconCompShader->SetInt3("R", R);
+
+					m_CalAMRReconCompShader->SetInt("BRICK_IDX", k * m_BrickRes.y * m_BrickRes.x + j * m_BrickRes.x + i);
+
+					std::dynamic_pointer_cast<tinyvr::vrOpenGLCompShader>(m_CalAMRReconCompShader)->Compute(R);
+				}
 	}
 
 	void gmm::vrGMMLayer::measureRMSE()
 	{
-		uint32_t m = std::min({ m_DataRes.x, m_DataRes.y, m_DataRes.z });
-		m_RMSENSSIMTex = tinyvr::vrTexture2D::Create(5, 2 + static_cast<uint32_t>(std::ceil(std::log2(m))),
-			tinyvr::vrTextureFormat::TEXTURE_FMT_RED, tinyvr::vrTextureType::TEXTURE_TYPE_FLT32);
-		m_RMSENSSIMTex->SetData(2);
+		std::vector<float> reconAMRBuffer(m_DataRes.x * m_DataRes.y * m_DataRes.z, 0.0f);
+		m_ReconVolumeByAMRTex->GetData(reconAMRBuffer.data());
 
-		m_MeasureRMSECompShader = tinyvr::vrShader::CreateComp("resources/shaders/compute/statisticalMSE_comp.glsl");
-		m_MeasureRMSECompShader->Bind();
+		double MSE = 0.0;
+		for (uint64_t i = 0; i < m_DataRes.x * m_DataRes.y * m_DataRes.z; ++i)
+		{
+			float v1 = m_OriginDataBuffer[i];
+			float v2 = reconAMRBuffer[i];
+			float dv = v1 - v2;
+			MSE += (dv * dv);
+		}
+		MSE /= (m_DataRes.x * m_DataRes.y * m_DataRes.z);
+		double RMSE = std::sqrt(MSE);
 
-		m_RMSENSSIMTex->BindImage(0, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_READWRITE);
-
-		//m_VolumeTex->BindUnit(1);
-		m_OriginVolumeTex->BindUnit(1);
-		m_ReconVolumeByAMRTex->BindUnit(2);
-
-		std::dynamic_pointer_cast<tinyvr::vrOpenGLCompShader>(m_MeasureRMSECompShader)->Compute(m_DataRes);
-
-		float sums = tinyvr::vrFrameBuffer::ReadPixelF(m_RMSENSSIMTex, glm::ivec2(0, 0));
-		float MSE = sums / (m_DataRes.x * m_DataRes.y * m_DataRes.z);
-		float RMSE = std::sqrt(MSE);
-
-		TINYVR_INFO("Calculate RMSE Finished, MSE = {0:>10.6}, RMSE = {1:>10.6}", MSE, RMSE);
+		TINYVR_INFO("Calculate RMSE Finished, RMSE = {1:>10.6}", MSE, RMSE);
 	}
 
-	void gmm::vrGMMLayer::measureSSIM()
+	void gmm::vrGMMLayer::measureNMSE()
 	{
-		uint32_t m = std::min({ m_DataRes.x, m_DataRes.y, m_DataRes.z });
-		uint32_t mipmapLVL = static_cast<uint32_t>(std::ceil(std::log2(m)));
+		std::vector<float> reconAMRBuffer(m_DataRes.x * m_DataRes.y * m_DataRes.z, 0.0f);
+		m_ReconVolumeByAMRTex->GetData(reconAMRBuffer.data());
 
-		m_DownSamplingCompShader = tinyvr::vrShader::CreateComp("resources/shaders/compute/statisticalDownSampling_comp.glsl");
+		double nominator = 0.0, denominator = 0.0;
+		for (uint64_t i = 0; i < m_DataRes.x * m_DataRes.y * m_DataRes.z; ++i)
+		{
+			float v1 = m_OriginDataBuffer[i];
+			float v2 = reconAMRBuffer[i];
+			float dv = v1 - v2;
+			nominator += (dv * dv);
+			denominator += (v1 * v1);
+		}
+		double NMSE = nominator / denominator;
 
-		m_MeasureSSIMMeanCompShader = tinyvr::vrShader::CreateComp("resources/shaders/compute/statisticalMSSIM_mean_comp.glsl");
-		m_MeasureSSIMVar2CompShader = tinyvr::vrShader::CreateComp("resources/shaders/compute/statisticalMSSIM_var2_comp.glsl");
+		TINYVR_INFO("Calculate RMSE Finished, NMSE = {0:>10.6}", NMSE);
+	}
+
+	void gmm::vrGMMLayer::OutputAMRReconVolume(const std::filesystem::path& dataDir, bool isFullReconVolume)
+	{
+		std::filesystem::path dataDirPath = fmt::format("{0}/{1}",
+			dataDir.string(),
+			m_VisVolOrEntropy ? "Volume" : "Entropy");
+
+		std::string picPrefixName = m_PicBaseDirPath.filename().string();
+
+		dataDirPath = dataDirPath / picPrefixName;
+		if (!std::filesystem::exists(dataDirPath))
+			std::filesystem::create_directories(dataDirPath);
+
+		tinyvr::vrRef<tinyvr::vrTexture3D> targetTexture;
+
+		std::string saveFileName = "";
 		
-		int L = 255;
-		double K1 = 0.01;
-		double K2 = 0.03;
-		double C1 = pow(K1 * L, 2.0);
-		double C2 = pow(K2 * L, 2.0);
-		double C3 = C2 / 2;
-
-		std::vector<float> SSIM(mipmapLVL, 0.0f);
-		std::vector<float> gamma(mipmapLVL, 0.0f);
-
-		std::vector<glm::vec3> lcs(mipmapLVL, glm::vec3(0.0f));
-
-		glm::ivec3 res = m_DataRes;
-		for (uint32_t i = 0; i < mipmapLVL; ++i)
+		if (isFullReconVolume)
 		{
-			// 0. initialization
-			glm::ivec2 mxIter = { 0, i + 1 };
-			glm::ivec2 myIter = { 1, i + 1 };
-
-			glm::ivec2 sxIter = { 2, i + 1 };
-			glm::ivec2 syIter = { 3, i + 1 };
-			glm::ivec2 sxyIter = { 4, i + 1 };
-
-			uint32_t NSamples = res.x * res.y * res.z;
-
-			// 1. mean
-			m_MeasureSSIMMeanCompShader->Bind();
-
-			m_RMSENSSIMTex->BindImage(0, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_READWRITE);
-			m_CopyVolumeTex->BindUnit(1);
-			m_ReconVolumeByAMRTex->BindUnit(2);
-
-			m_MeasureSSIMMeanCompShader->SetInt("mipmapLVL", i);
-			m_MeasureSSIMMeanCompShader->SetInt3("R", res);
-
-			std::dynamic_pointer_cast<tinyvr::vrOpenGLCompShader>(m_MeasureSSIMMeanCompShader)->Compute(res);
-
-			double mx = tinyvr::vrFrameBuffer::ReadPixelF(m_RMSENSSIMTex, mxIter) / NSamples;
-			double my = tinyvr::vrFrameBuffer::ReadPixelF(m_RMSENSSIMTex, myIter) / NSamples;
-
-			// 2. vars
-			m_MeasureSSIMVar2CompShader->Bind();
-
-			m_RMSENSSIMTex->BindImage(0, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_READWRITE);
-			m_CopyVolumeTex->BindUnit(1);
-			m_ReconVolumeByAMRTex->BindUnit(2);
-
-			m_MeasureSSIMVar2CompShader->SetInt("mipmapLVL", i);
-			m_MeasureSSIMVar2CompShader->SetInt3("R", res);
-
-			m_MeasureSSIMVar2CompShader->SetFloat("mx", mx);
-			m_MeasureSSIMVar2CompShader->SetFloat("my", my);
-
-			std::dynamic_pointer_cast<tinyvr::vrOpenGLCompShader>(m_MeasureSSIMVar2CompShader)->Compute(res);
-
-			double sx = std::sqrt(tinyvr::vrFrameBuffer::ReadPixelF(m_RMSENSSIMTex, sxIter) / (NSamples - 1));
-			double sy = std::sqrt(tinyvr::vrFrameBuffer::ReadPixelF(m_RMSENSSIMTex, syIter) / (NSamples - 1));
-			double sxy = tinyvr::vrFrameBuffer::ReadPixelF(m_RMSENSSIMTex, sxyIter) / (NSamples - 1);
-
-			// 3. LCS
-			lcs[i].x = (2.0 * mx * my + C1) / (mx * mx + my * my + C1);
-			lcs[i].y = (2.0 * sx * sy + C2) / (sx * sx + sy * sy + C2);
-			lcs[i].z = (sxy + C3) / (sx * sy + C3);
-
-			SSIM[i] = lcs[i].x * lcs[i].y * lcs[i].z;
-
-			// 4. Down-sampling
-			auto UpRes = res;
-			m_DownSamplingCompShader->Bind();
-
-			m_CopyVolumeTex->BindImage(0, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_READWRITE);
-			m_DownSamplingCompShader->SetInt3("UpRes", UpRes);
-			std::dynamic_pointer_cast<tinyvr::vrOpenGLCompShader>(m_DownSamplingCompShader)->Compute(res);
-
-			m_ReconVolumeByAMRTex->BindImage(0, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_READWRITE);
-			m_DownSamplingCompShader->SetInt3("UpRes", UpRes);
-			std::dynamic_pointer_cast<tinyvr::vrOpenGLCompShader>(m_DownSamplingCompShader)->Compute(res);
-
-			res = (res + res % glm::ivec3(2)) / glm::ivec3(2);
+			saveFileName = fmt::format("{0}_{1}.raw", picPrefixName, "FullRecon");
+			targetTexture = m_VolumeTex;
+		}
+		else
+		{
+			saveFileName = fmt::format("{0}_{1}_{2}_{3}.raw", 
+				picPrefixName, 
+				isFullReconVolume ? "FullRecon" : "AMRRecon",
+				m_e0, m_rho);
+			targetTexture = m_ReconVolumeByAMRTex;
 		}
 
-		float MSSIM = 1.0f;
-		float W = 1.0f;
-		float w = 1.0f;
-		for (uint32_t i = 0; i < mipmapLVL; ++i)
-		{
-			w /= 2.0f;
-			if (lcs[i].z > 0)	MSSIM *= pow(lcs[i].y * lcs[i].z, w);
-			else
-			{
-				MSSIM *= pow(lcs[i - 1].x, W);
-				break;
-			}
-			W -= w;
-		}
-		TINYVR_INFO("Get MSSIM = {0:>16.6}, SSIM = [{1:>10.6}]\n", MSSIM, fmt::join(SSIM, ","));
+		std::vector<float> buffer(m_DataRes.x * m_DataRes.y * m_DataRes.z, 0.0f);
+		targetTexture->GetData(buffer.data());
+
+		std::filesystem::path targetFilePath = dataDirPath / saveFileName;
+
+		std::ofstream file(targetFilePath, std::ios::binary);
+		file.write((const char*)buffer.data(), m_DataRes.x * m_DataRes.y * m_DataRes.z * sizeof(float));
+		file.close();
+
+		TINYVR_INFO("Write Raw Data {0}", targetFilePath.string());
 	}
 }

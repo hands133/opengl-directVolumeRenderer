@@ -6,8 +6,7 @@ layout(local_size_x = 1) in;
 
 layout(binding = 0, r32ui)		uniform coherent uimage2D tex_OctreeNode;
 layout(binding = 1, rgba32f)	uniform coherent image2D tex_OctreePos;
-layout(binding = 2, r32i)		uniform coherent iimage2D tex_MinMaxEntropy;	
-layout(binding = 3)				uniform sampler3D tex_Entropy;
+layout(binding = 2)				uniform sampler3D tex_Entropy;
 
 
 uniform int currentLevel;
@@ -36,20 +35,8 @@ bool JudgeFlag(vec4 cellInfo, float e)
 			{
 				vec3 pSamp = cellInfo.xyz + vec3(wOffset) + vec3(w0) * vec3(i, j, k);
 				float entropy = texture(tex_Entropy, pSamp).x;
-	
-				if (entropy < vMin)	vMin = entropy;
-				if (entropy > vMax)	vMax = entropy;
-				if (entropy > e)	shouldDivide = true;
+				if (entropy >= e)	shouldDivide = true;
 			}
-	
-	int vMinInt = int(vMin * 100000000.0f);
-	int vMaxInt = int(vMax * 100000000.0f);
-	
-	ivec2 minEIter = ivec2(currentLevel, 0);
-	ivec2 maxEIter = ivec2(currentLevel, 1);
-	
-	imageAtomicMin(tex_MinMaxEntropy, minEIter, vMinInt);
-	imageAtomicMax(tex_MinMaxEntropy, maxEIter, vMaxInt);
 
 	return shouldDivide;
 }

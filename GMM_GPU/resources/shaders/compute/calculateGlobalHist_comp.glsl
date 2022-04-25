@@ -16,9 +16,9 @@ void main()
 {
 	ivec3 sampP = ivec3(gl_GlobalInvocationID.xyz);
 
-	//float dv = (vMax - vMin) / float(NumIntervals);
-	float dv = 1.0f;
-	int bIdx = int(floor((texelFetch(tex_Volume, sampP, 0).x - vMin) / dv));
+	float dv = (vMax - vMin) / float(NumIntervals);
+	float v = texelFetch(tex_Volume, sampP, 0).x;
+	int bIdx = int((v - vMin) / dv);
 
 	imageAtomicAdd(tex_Histogram, ivec2(bIdx, 0), 1);
 }

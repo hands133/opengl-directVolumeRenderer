@@ -202,7 +202,6 @@ namespace tinyvr {
         memset(buffer, 0, N);
 
         FetchTexture(texID, format, type, lvl, buffer);
-
         hist = getHistogram(type, format, buffer, items, NumIntervals);
 
         delete[] buffer;

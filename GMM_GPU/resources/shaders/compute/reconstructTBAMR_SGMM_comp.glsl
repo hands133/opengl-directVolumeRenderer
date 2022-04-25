@@ -16,6 +16,9 @@ float PI = 3.141592653589793238462643383279;
 uniform int B;
 uniform int PS;
 
+uniform float vMin;
+uniform float vMax;
+
 uniform int NumIntervals;
 uniform int NumBricks;
 
@@ -78,58 +81,16 @@ void main()
     ivec3 patchCellPoint = ivec3((sc - leafInfo.xyz) / vec3(patchW));
 	vec3 o = leafInfo.xyz + patchW * vec3(patchCellPoint);
 
-    vec3 c000 = o + vec3(0, 0, 0) * vec3(patchW);
-    vec3 c001 = o + vec3(1, 0, 0) * vec3(patchW);
-    vec3 c010 = o + vec3(0, 1, 0) * vec3(patchW);
-    vec3 c011 = o + vec3(1, 1, 0) * vec3(patchW);
-    vec3 c100 = o + vec3(0, 0, 1) * vec3(patchW);
-    vec3 c101 = o + vec3(1, 0, 1) * vec3(patchW);
-    vec3 c110 = o + vec3(0, 1, 1) * vec3(patchW);
-    vec3 c111 = o + vec3(1, 1, 1) * vec3(patchW);
-
-    vec3 t = (sc - o) / vec3(patchW);
-
-    // 3. calculate vijk one-by-one
-    // probBuffer[binIdx] = calProbAtEachBin(c000, binIdx);
-    // barrier();
-    // float v000 = float(calBinIdxWithMaxProb());
-
-    // probBuffer[binIdx] = calProbAtEachBin(c001, binIdx);
-    // barrier();
-    // float v001 = float(calBinIdxWithMaxProb());
-
-    // probBuffer[binIdx] = calProbAtEachBin(c010, binIdx);
-    // barrier();
-    // float v010 = float(calBinIdxWithMaxProb());
-
-    // probBuffer[binIdx] = calProbAtEachBin(c011, binIdx);
-    // barrier();
-    // float v011 = float(calBinIdxWithMaxProb());
-
-    // probBuffer[binIdx] = calProbAtEachBin(c100, binIdx);
-    // barrier();
-    // float v100 = float(calBinIdxWithMaxProb());
-
-    // probBuffer[binIdx] = calProbAtEachBin(c101, binIdx);
-    // barrier();
-    // float v101 = float(calBinIdxWithMaxProb());
-
-    // probBuffer[binIdx] = calProbAtEachBin(c110, binIdx);
-    // barrier();
-    // float v110 = float(calBinIdxWithMaxProb());
-    
-    // probBuffer[binIdx] = calProbAtEachBin(c111, binIdx);
-    // barrier();
-    // float v111 = float(calBinIdxWithMaxProb());
-
-    // float m = lerp3(v000, v001, v010, v011, v100, v101, v110, v111, t);
-
+	// 3. calculate value at center
     probBuffer[binIdx] = calProbAtEachBin(o + vec3(0.5f) * vec3(patchW), binIdx);
     barrier();
+
+	float dv = (vMax - vMin) / float(NumIntervals);
     
     if (binIdx == 0)
     {
-        float m = float(calBinIdxWithMaxProb());
+		int idx = calBinIdxWithMaxProb();
+        float m = vMin + float(idx) * dv;
         imageStore(tex_ReconResult, samplePoint, vec4(m));
     }
 }

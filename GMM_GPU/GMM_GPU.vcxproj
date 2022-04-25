@@ -107,6 +107,8 @@
     <ClCompile Include="src\layers\GMMlayer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="resources\shaders\compute\calculateEntropyPerBrick_comp.glsl" />
+    <None Include="resources\shaders\compute\reconstructTBAMR_EntropyRange_comp.glsl" />
     <None Include="resources\shaders\compute\calculateGlobalHist_comp.glsl" />
     <None Include="resources\shaders\compute\calculateLocalHistEntropy_comp.glsl" />
     <None Include="resources\shaders\compute\calculateOctreeNodes_comp.glsl" />
@@ -117,10 +119,6 @@
     <None Include="resources\shaders\compute\reconstructTBAMR_flag_comp.glsl" />
     <None Include="resources\shaders\compute\reconstructTBAMR_refine_comp.glsl" />
     <None Include="resources\shaders\compute\reconstructTBAMR_SGMM_comp.glsl" />
-    <None Include="resources\shaders\compute\statisticalDownSampling_comp.glsl" />
-    <None Include="resources\shaders\compute\statisticalMSE_comp.glsl" />
-    <None Include="resources\shaders\compute\statisticalMSSIM_mean_comp.glsl" />
-    <None Include="resources\shaders\compute\statisticalMSSIM_var2_comp.glsl" />
     <None Include="resources\shaders\render\RC\RC_AMR_frag.glsl" />
     <None Include="resources\shaders\render\RC\RC_AMR_vert.glsl" />
     <None Include="resources\shaders\render\RC\rayCasting_frag.glsl" />

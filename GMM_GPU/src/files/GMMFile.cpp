@@ -29,7 +29,7 @@ namespace gmm
 
 		TINYVR_INFO("Open File {0}", baseInfoPath);
 
-		std::vector<std::thread> threadList;
+		std::vector<std::thread> tPool;
 		for (int i = 0; i < m_numBricks; ++i)
 		{
 			std::string x, y, z;
@@ -41,12 +41,11 @@ namespace gmm
 			auto O = glm::uvec3(std::stoi(x), std::stoi(y), std::stoi(z));
 			auto R = glm::uvec3(std::stoi(dx), std::stoi(dy), std::stoi(dz));
 
-			//threadList.emplace_back(
-				//std::thread(&GMMFile::ReadParts, this, std::cref(baseDir), i, std::cref(O), std::cref(R)));
-			ReadParts(baseDir, i, O, R);
+			//ReadParts(baseDir, i, O, R);
+			tPool.emplace_back(&GMMFile::ReadParts, this,
+				std::cref(baseDir), i, O, R);
 		}
-
-		for (auto& t : threadList)	t.join();
+		for (auto& t : tPool)	t.join();
 
 		const auto& back = m_dataList.back();
 		m_resolution = back.first.origin + back.first.span;
@@ -203,6 +202,11 @@ namespace gmm
 		p.first.origin = O;
 		p.first.span = R;
 
+		auto blockR = R / glm::uvec3(m_BlockSide);
+		p.first.numBlocks = blockR.x * blockR.y * blockR.z;
+		if (p.first.numBlocks > m_maxBinNumPerBrick)
+			m_maxBinNumPerBrick = p.first.numBlocks;
+
 		std::string brickBlockFilePath = baseDir + "/blockInfo-" + std::to_string(i) + "-8.txt";
 		std::string brickParamFilePath = baseDir + "/spatialGmm-" + std::to_string(i) + "-0.txt";
 		bool GMMListPerBlockIsRead = ReadBlockPerBrick(brickBlockFilePath, p.first.origin, i);
@@ -226,29 +230,22 @@ namespace gmm
 
 		auto& p = m_dataList[index];
 		auto& blockList = p.second.BlocksListPerBlock;
+		blockList.resize(p.first.numBlocks);
 
 		std::string x0, y0, z0;
 		std::string dx, dy, dz;
-
-		std::array<int, 6> tmpArr;
-
-		while (!file.eof())
+		for (int i = 0; i < p.first.numBlocks; ++i)
 		{
 			file >> x0 >> y0 >> z0;
 			file >> dx >> dy >> dz;
 
-			tmpArr = { std::stoi(x0), std::stoi(y0), std::stoi(z0),
-					std::stoi(dx), std::stoi(dy), std::stoi(dz) };
-
-			blockList.emplace_back(tmpArr);
+			blockList[i][0] = std::stoi(x0);
+			blockList[i][1] = std::stoi(y0);
+			blockList[i][2] = std::stoi(z0);
+			blockList[i][3] = std::stoi(dx);
+			blockList[i][4] = std::stoi(dy);
+			blockList[i][5] = std::stoi(dz);
 		}
-
-		blockList.pop_back();	// skip last "\n"
-
-		p.first.numBlocks = blockList.size();
-		if (blockList.size() > m_maxBinNumPerBrick)
-			m_maxBinNumPerBrick = blockList.size();
-
 		file.close();
 
 		return true;
@@ -289,7 +286,6 @@ namespace gmm
 
 			GMMBin bin;
 			bin.SetProb(std::stod(binProb));
-			// for each gaussian kernel function
 			for (unsigned int i = 0; i < numGaussian; ++i)
 			{
 				file >> kernelWeight;
@@ -311,7 +307,6 @@ namespace gmm
 			}
 			gmmList[std::stoi(blockIdx)][std::stoi(binIdx)] = bin;
 		}
-
 		m_dataList[index].first.numKernels = numKernels;
 
 		file.close();

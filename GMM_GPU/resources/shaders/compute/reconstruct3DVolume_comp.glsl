@@ -2,14 +2,14 @@
 
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
-layout(binding = 0, rg32f)		uniform writeonly image3D tex_Volume;
+layout(binding = 0, r32f)		uniform writeonly image3D tex_Volume;
 
 layout(binding = 1)				uniform sampler3D tex_GMMCoeff_1;
 layout(binding = 2)				uniform sampler3D tex_GMMCoeff_2;
 layout(binding = 3)				uniform sampler3D tex_GMMCoeff_3;
 layout(binding = 4)				uniform sampler3D tex_GMMCoeff_4;
 
-float PI = 3.141592653589793238462643383279;
+float PI = 3.14159265358979323846;
 
 uniform int B;
 
@@ -24,29 +24,13 @@ uniform int BRICK_IDX;
 
 shared float probBuffer[256];
 
-float random(vec2 p)
-{
-	vec2 K = vec2(
-		23.14069263277926, // e^pi (Gelfond's constant)
-		2.665144142690225 // 2^sqrt(2) (Gelfondâ€“Schneider constant)
-	);
-	return fract(cos(dot(p, K)) * 12345.6789);
-}
-
-float random_3(vec3 p)
-{
-	vec3 K = vec3(
-		23.14069263277926, // e^pi (Gelfond's constant)
-		2.665144142690225, // 2^sqrt(2) (Gelfondâ€“Schneider constant)
-		1.6180339887498948 // Φ
-	);
-	return fract(cos(dot(p, K)) * 12345.6789);
-}
-
 float gaussian1D(float mean, float var2, float x)
 {
-	float v = 1.0f / sqrt(2.0f * PI * var2);
-	return v * exp(-0.5f * (x - mean) * (x - mean) / var2);
+	float v = 1.0 / sqrt(2.0 * PI * var2);
+	float xb = float(x - mean);
+	float s2 = float(var2);
+	return v * exp(-0.5f * xb * xb / s2);
+	//return v * exp(-0.5 * (x - mean) * (x - mean) / var2);
 }
 
 float gaussian3D(vec3 means, vec3 var2s, vec3 p)
@@ -131,7 +115,7 @@ void main()
 	// bi [m, M)
 	if (binIdx == 0)
 	{
-		float p = 0.0f;
+		float p = -1.0f;
 		int idx = 0;
 		for (int i = 0; i < NumIntervals; ++i)
 			if (probBuffer[i] > p)
