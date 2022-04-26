@@ -96,13 +96,12 @@ namespace gmm
 					sgmmInfoEachBlock[0], sgmmInfoEachBlock[1], sgmmInfoEachBlock[2],
 					sgmmInfoEachBlock[3], sgmmInfoEachBlock[4], sgmmInfoEachBlock[5]);
 
-				for (int binIdx = 0; binIdx < m_numInterval; ++binIdx)
+				for (auto& binPair : sgmmCoeffsEachBlock)
 				{
-					auto& bin = sgmmCoeffsEachBlock[binIdx];
-					uint32_t K = bin.GetKernelNum();
-					if (K == 0)	continue;
+					int binIdx = binPair.first;
+					auto& bin = binPair.second;
 
-					sgmmCoeffsFile << fmt::format("{0} {1} {2} ", binIdx, bin.GetProb(), K);
+					sgmmCoeffsFile << fmt::format("{0} {1} {2} ", binIdx, bin.GetProb(), bin.GetKernelNum());
 					for (int k = 0; k < bin.GetKernelNum(); ++k)
 					{
 						auto& kernel = bin.GetKernel(k);
@@ -121,78 +120,14 @@ namespace gmm
 		return void();
 	}
 
-	size_t GMMFile::idxBrickPos(const glm::uvec3& samplePoint) const
+	// save brick res and block info, delete gmm coeffs
+	void GMMFile::ReleaseDataBuffer()
 	{
-		auto DX = m_resolution.x / 4;
-		auto DY = m_resolution.y / 3;
-		auto DZ = m_resolution.z / 2;
-
-		unsigned int XGap[5] = { 0, DX, DX * 2, DX * 3, m_resolution.x };
-		unsigned int YGap[4] = { 0, DY, DY * 2, m_resolution.y };
-		unsigned int ZGap[3] = { 0, DZ, m_resolution.z };
-
-		auto nx = 0, ny = 0, nz = 0;
-		if (samplePoint.z > ZGap[1])	++nz;
-		if (samplePoint.y > YGap[1])	++ny;
-		if (samplePoint.y > YGap[2])	++ny;
-		if (samplePoint.x > XGap[1])	++nx;
-		if (samplePoint.x > XGap[2])	++nx;
-		if (samplePoint.x > XGap[3])	++nx;
-
-		return nz * 4ULL * 3ULL + ny * 4ULL + nx;
-	}
-
-	float GMMFile::evalAtPos(const glm::uvec3& samplePoint) const
-	{
-		size_t brickIdx = idxBrickPos(samplePoint);
-		const auto& brickData = m_dataList[brickIdx];
-
-		auto B = m_BlockSide;
-		// blockIdx
-		glm::uvec3 brickOffsetPos = samplePoint - brickData.first.origin;
-		glm::uvec3 sampP = brickOffsetPos % glm::uvec3(B);
-
-		auto brickBlockRes = brickData.first.span / glm::uvec3(B);
-		auto brickBlockPos = brickOffsetPos / glm::uvec3(B);
-
-		if (brickOffsetPos.x >= brickBlockRes.x * B)
+		for (auto& p : m_dataList)
 		{
-			sampP.x += B;
-			brickBlockPos.x--;
+			auto& gmmPerBrick = p.second.GMMListPerBlock;
+			gmmPerBrick.swap(std::vector<std::vector<std::pair<uint32_t, GMMBin>>>());
 		}
-
-		if (brickOffsetPos.y >= brickBlockRes.y * B)
-		{
-			sampP.y += B;
-			brickBlockPos.y--;
-		}
-
-		if (brickOffsetPos.z >= brickBlockRes.z * B)
-		{
-			sampP.z += B;
-			brickBlockPos.z--;
-		}
-
-		uint32_t blockIdx = brickBlockPos.z * brickBlockRes.y * brickBlockRes.x
-			+ brickBlockPos.y * brickBlockRes.x + brickBlockPos.x;
-
-		const auto& gmmList = brickData.second.GMMListPerBlock[blockIdx];
-		int v = 0;
-		float prob = -1.0;
-
-		for (int i = 0; i < gmmList.size(); ++i)
-		{
-			const auto& gmm = gmmList[i];
-			//if (gmm.GetWeight() <= 0)	continue;
-			double P = gmm(sampP);
-			if (P > prob)
-			{
-				v = i;
-				prob = P;
-			}
-		}
-
-		return 1.0f * v;
 	}
 
 	void GMMFile::ReadParts(const std::string& baseDir, int i, const glm::uvec3& O, const glm::uvec3& R)
@@ -274,8 +209,7 @@ namespace gmm
 
 		uint32_t numKernels = 0;
 
-		for (auto& item : gmmList)
-			item.resize(m_numInterval);
+		for (auto& item : gmmList)	item.reserve(1);
 
 		while (!file.eof())
 		{
@@ -305,7 +239,8 @@ namespace gmm
 
 				bin.Push(kernel);
 			}
-			gmmList[std::stoi(blockIdx)][std::stoi(binIdx)] = bin;
+			gmmList[std::stoi(blockIdx)].emplace_back(
+				std::make_pair(std::stoi(binIdx), bin));
 		}
 		m_dataList[index].first.numKernels = numKernels;
 

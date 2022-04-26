@@ -507,15 +507,17 @@ namespace gmm {
 				for (int i = 0; i < I; ++i)
 				{
 					const auto& GMMBinList = data.GMMListPerBlock[i];
-					for (int j = 0; j < D; ++j)
-					{
-						const auto& bin = GMMBinList[j];
-						if (n >= bin.GetKernelNum())	continue;
 
+					for (auto& binPair : GMMBinList)
+					{
+						const auto& binIdx = binPair.first;
+						const auto& bin = binPair.second;
+
+						if (n >= bin.GetKernelNum())	continue;
 						const auto& kernel = bin.GetKernel(n);
 
 						// GMMBin weight & mean value
-						auto idx = k * (W * D) + j * W + i;
+						auto idx = k * (W * D) + binIdx * W + i;
 						auto& texelForMean = GMMCoeffBuffer[idx];
 
 						texelForMean.w = bin.GetProb();
@@ -536,6 +538,8 @@ namespace gmm {
 			}
 			m_GMMCoeffTexturesList.back()->SetData(W * D * H, GMMCoeffBuffer.data());
 		}
+
+		m_GMMFile->ReleaseDataBuffer();
 	}
 
 	void vrGMMLayer::initVolumeTex()
@@ -605,9 +609,9 @@ namespace gmm {
 
 	void vrGMMLayer::calculateHistogram()
 	{
-		m_GlobalHistTex = tinyvr::vrTexture2D::Create(m_NumIntervals, 1,
-			tinyvr::vrTextureFormat::TEXTURE_FMT_RED, tinyvr::vrTextureType::TEXTURE_TYPE_U32I);
-		m_GlobalHistTex->SetData(m_NumIntervals);
+		//m_GlobalHistTex = tinyvr::vrTexture2D::Create(m_NumIntervals, 1,
+		//	tinyvr::vrTextureFormat::TEXTURE_FMT_RED, tinyvr::vrTextureType::TEXTURE_TYPE_U32I);
+		//m_GlobalHistTex->SetData(m_NumIntervals);
 
 		//m_GlobalHistCompShader = tinyvr::vrShader::CreateComp("resources/shaders/compute/calculateGlobalHist_comp.glsl");
 		//m_GlobalHistCompShader->Bind();
@@ -764,85 +768,39 @@ namespace gmm {
 	
 	void vrGMMLayer::initEntropyComponent()
 	{
-		{
-			m_LocalEntropyTex = tinyvr::vrTexture3D::Create(m_DataRes.x, m_DataRes.y, m_DataRes.z,
-				tinyvr::vrTextureFormat::TEXTURE_FMT_RED);
-			m_LocalEntropyTex->SetData(m_DataRes.x * m_DataRes.y * m_DataRes.z, nullptr);
+		m_LocalEntropyTex = tinyvr::vrTexture3D::Create(m_DataRes.x, m_DataRes.y, m_DataRes.z,
+			tinyvr::vrTextureFormat::TEXTURE_FMT_RED);
+		m_LocalEntropyTex->SetData(m_DataRes.x * m_DataRes.y * m_DataRes.z, nullptr);
 			
-			//{	// calculate entropy using local histogram
-			//	m_EntropyLocalHistCompShader = tinyvr::vrShader::CreateComp("resources/shaders/compute/calculateLocalHistEntropy_comp.glsl");
-			//	m_EntropyLocalHistCompShader->Bind();
+		{	// calculate entropy using local histogram
+			m_EntropyLocalHistCompShader = tinyvr::vrShader::CreateComp("resources/shaders/compute/calculateEntropyPerBrick_comp.glsl");
+			m_EntropyLocalHistCompShader->Bind();
 
-			//	m_LocalEntropyTex->BindImage(0, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_WRITEONLY);
-			//	m_VolumeTex->BindUnit(1);
+			m_LocalEntropyTex->BindImage(0, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_WRITEONLY);
+			m_VolumeTex->BindUnit(1);
 
-			//	m_EntropyLocalHistCompShader->SetFloat("vMin", m_ValueRange.x);
-			//	m_EntropyLocalHistCompShader->SetFloat("vMax", m_ValueRange.y);
-			//	m_EntropyLocalHistCompShader->SetInt("NumIntervals", m_NumIntervals);
-			//	m_EntropyLocalHistCompShader->SetInt("StencilSize", 5);
+			m_EntropyLocalHistCompShader->SetFloat("vMin", m_ValueRange.x);
+			m_EntropyLocalHistCompShader->SetFloat("vMax", m_ValueRange.y);
+			m_EntropyLocalHistCompShader->SetInt("NumIntervals", m_NumIntervals);
+			m_EntropyLocalHistCompShader->SetInt3("dataRes", m_DataRes);
+			m_EntropyLocalHistCompShader->SetInt("SS", 5);
 
-			//	std::dynamic_pointer_cast<tinyvr::vrOpenGLCompShader>(m_EntropyLocalHistCompShader)->Compute(m_DataRes);
-			//}			
-			{	// calculate entropy using local histogram
-				m_EntropyLocalHistCompShader = tinyvr::vrShader::CreateComp("resources/shaders/compute/calculateEntropyPerBrick_comp.glsl");
-				m_EntropyLocalHistCompShader->Bind();
+			for (int i = 0; i < m_BrickRes.x; ++i)
+				for (int j = 0; j < m_BrickRes.y; ++j)
+					for (int k = 0; k < m_BrickRes.z; ++k)
+					{
+						auto O = glm::ivec3(m_XGap[i], m_YGap[j], m_ZGap[k]);
+						auto R = glm::ivec3(m_XGap[i + 1] - m_XGap[i],
+											m_YGap[j + 1] - m_YGap[j],
+											m_ZGap[k + 1] - m_ZGap[k]);
 
-				m_LocalEntropyTex->BindImage(0, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_WRITEONLY);
-				m_VolumeTex->BindUnit(1);
+						m_EntropyLocalHistCompShader->SetInt3("O", O);
+						m_EntropyLocalHistCompShader->SetInt3("R", R);
 
-				m_EntropyLocalHistCompShader->SetFloat("vMin", m_ValueRange.x);
-				m_EntropyLocalHistCompShader->SetFloat("vMax", m_ValueRange.y);
-				m_EntropyLocalHistCompShader->SetInt("NumIntervals", m_NumIntervals);
-				m_EntropyLocalHistCompShader->SetInt3("dataRes", m_DataRes);
-				m_EntropyLocalHistCompShader->SetInt("SS", 5);
-
-				for (int i = 0; i < m_BrickRes.x; ++i)
-					for (int j = 0; j < m_BrickRes.y; ++j)
-						for (int k = 0; k < m_BrickRes.z; ++k)
-						{
-							auto O = glm::ivec3(m_XGap[i], m_YGap[j], m_ZGap[k]);
-							auto R = glm::ivec3(m_XGap[i + 1] - m_XGap[i],
-												m_YGap[j + 1] - m_YGap[j],
-												m_ZGap[k + 1] - m_ZGap[k]);
-
-							m_EntropyLocalHistCompShader->SetInt3("O", O);
-							m_EntropyLocalHistCompShader->SetInt3("R", R);
-
-							std::dynamic_pointer_cast<tinyvr::vrOpenGLCompShader>(m_EntropyLocalHistCompShader)->Compute(R);
-						}
-			}
-
-			//{	// calculate GMM differential entropy
-			//	tinyvr::vrRef<tinyvr::vrShader> SGMMEntropyCompShader =
-			//		tinyvr::vrShader::CreateComp("resources/shaders/compute/calculateSGMMEntropy_comp.glsl");
-			//	SGMMEntropyCompShader->Bind();
-
-			//	m_LocalEntropyTex->BindImage(0, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_WRITEONLY);
-			//	for (int i = 0; i < m_GMMCoeffTexturesList.size(); ++i)		m_GMMCoeffTexturesList[i]->BindUnit(i + 1);
-
-			//	SGMMEntropyCompShader->SetInt("B", m_BlockSize);
-			//	SGMMEntropyCompShader->SetFloat("vMin", m_ValueRange.x);
-			//	SGMMEntropyCompShader->SetFloat("vMax", m_ValueRange.y);
-			//	SGMMEntropyCompShader->SetInt("NumIntervals", m_NumIntervals);
-			//	SGMMEntropyCompShader->SetInt("NumBricks", m_BrickRes.x * m_BrickRes.y * m_BrickRes.z);
-
-			//	for (int i = 0; i < m_BrickRes.x; ++i)
-			//		for (int j = 0; j < m_BrickRes.y; ++j)
-			//			for (int k = 0; k < m_BrickRes.z; ++k)
-			//			{
-			//				auto O = glm::ivec3(m_XGap[i], m_YGap[j], m_ZGap[k]);
-			//				auto R = glm::ivec3(m_XGap[i + 1] - m_XGap[i],
-			//									m_YGap[j + 1] - m_YGap[j],
-			//									m_ZGap[k + 1] - m_ZGap[k]);
-
-			//				SGMMEntropyCompShader->SetInt3("O", O);
-			//				SGMMEntropyCompShader->SetInt3("R", R);
-			//				SGMMEntropyCompShader->SetInt("BRICK_IDX", k * m_BrickRes.y * m_BrickRes.x + j * m_BrickRes.x + i);
-
-			//				std::dynamic_pointer_cast<tinyvr::vrOpenGLCompShader>(SGMMEntropyCompShader)->Compute(R);
-			//			}
-			//}
+						std::dynamic_pointer_cast<tinyvr::vrOpenGLCompShader>(m_EntropyLocalHistCompShader)->Compute(R);
+					}
 		}
+
 		//m_EntopyHistogram = m_LocalEntropyTex->GetHistogram(m_NumIntervals);
 		//auto mM = std::minmax_element(m_EntopyHistogram.begin(), m_EntopyHistogram.end());
 		//m_EntropyHistRange = { *(mM.first), *(mM.second) };
@@ -850,24 +808,22 @@ namespace gmm {
 		m_EntropyHistRange = m_EntropyRange;
 
 		//m_EntropyRange = m_LocalEntropyTex->GlobalMinMaxVal();
-		m_EntropyRange = glm::vec2(0, 4.8);
+		m_EntropyRange = m_ValueRange;
 		TINYVR_CORE_INFO("Entropy range : [{0:>8.4}, {1:>8.4}]", m_EntropyRange.x, m_EntropyRange.y);
 	}
 	
 	void vrGMMLayer::constructOctree()
 	{
-		{
-			uint32_t m = std::max({ m_DataRes.x, m_DataRes.y, m_DataRes.z });
-			maxOctreeDepth = static_cast<uint32_t>(std::floor(log2(1.0 * m / patchSize))) + 1;
-			treeMaxDepth = maxOctreeDepth + 1;
+		uint32_t m = std::max({ m_DataRes.x, m_DataRes.y, m_DataRes.z });
+		maxOctreeDepth = static_cast<uint32_t>(std::floor(log2(1.0 * m / patchSize))) + 1;
+		treeMaxDepth = maxOctreeDepth + 1;
 
-			if (treeMaxDepth <= 6)	treeTexHeight = treeMaxDepth;
-			else
-			{
-				treeTexHeight = 6;
-				for (int i = 0; i < treeMaxDepth - 6; ++i)
-					treeTexHeight += static_cast<uint32_t>(std::pow(8, i + 1));
-			}
+		if (treeMaxDepth <= 6)	treeTexHeight = treeMaxDepth;
+		else
+		{
+			treeTexHeight = 6;
+			for (int i = 0; i < treeMaxDepth - 6; ++i)
+				treeTexHeight += static_cast<uint32_t>(std::pow(8, i + 1));
 		}
 
 		{	// [Node Pool]	r: [m:1] [f:1] [off_x:15, off_y:15]
@@ -901,17 +857,23 @@ namespace gmm {
 				minmaxEntropyCompShader->SetInt("texW", treeTexWidth);
 				minmaxEntropyCompShader->SetInt("PS", patchSize);
 
-				std::dynamic_pointer_cast<tinyvr::vrOpenGLCompShader>(minmaxEntropyCompShader)
-					->Compute({ std::pow(8, i), 8, 1 });
-
-				float minEntropy = tinyvr::vrFrameBuffer::ReadPixelUI(m_AMRMinMaxEntropyRangeTex, glm::ivec2{ i, 0 }) / 1.0e8;
-				float maxEntropy = tinyvr::vrFrameBuffer::ReadPixelUI(m_AMRMinMaxEntropyRangeTex, glm::ivec2{ i, 1 }) / 1.0e8;
-				ERangePerLayer[i] = { minEntropy, maxEntropy };
+				std::dynamic_pointer_cast<tinyvr::vrOpenGLCompShader>(minmaxEntropyCompShader)->Compute({ std::pow(8, i), 8, 1 });
 			}
 
+			std::vector<int> minmaxBuffer(treeMaxDepth * 2, 0);
+			m_AMRMinMaxEntropyRangeTex->GetData(minmaxBuffer.data());
+
 			std::cout << "Entropy Range : ";
-			for (auto p : ERangePerLayer)
-				std::cout << "[" << p.x << ", " << p.y << "] ";
+			for (int i = 0; i < treeMaxDepth; ++i)
+			{
+				float m = minmaxBuffer[i] / 1.0e9;
+				float M = minmaxBuffer[i + treeMaxDepth] / 1.0e9;
+				ERangePerLayer[i] = { m, M };
+			}
+
+			for (auto p : ERangePerLayer)	std::cout << p.x << " ";
+			std::cout << "\n";
+			for (auto p : ERangePerLayer)	std::cout << p.y << " ";
 			std::cout << "\n";
 		}
 
@@ -1015,21 +977,6 @@ namespace gmm {
 		m_ReconVolumeByAMRTex = tinyvr::vrTexture3D::Create(m_DataRes.x, m_DataRes.y, m_DataRes.z,
 			tinyvr::vrTextureFormat::TEXTURE_FMT_RED, tinyvr::vrTextureType::TEXTURE_TYPE_FLT32);
 		m_ReconVolumeByAMRTex->SetData(m_DataRes.x * m_DataRes.y * m_DataRes.z);
-		
-		//m_CalAMRReconCompShader = tinyvr::vrShader::CreateComp("resources/shaders/compute/reconstruct3DVolumeByAMR_Comp.glsl");
-		//m_CalAMRReconCompShader->Bind();
-
-		//m_ReconVolumeByAMRTex->BindImage(0, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_WRITEONLY);
-		//m_VolumeTex->BindUnit(1);
-
-		//m_TreeNodeTex->BindUnit(2);
-		//m_TreePosTex->BindUnit(3);
-
-		//m_CalAMRReconCompShader->SetInt3("dataRes", m_DataRes);
-		//m_CalAMRReconCompShader->SetInt("B", m_BlockSize);
-		//m_CalAMRReconCompShader->SetInt("PS", patchSize);
-
-		//std::dynamic_pointer_cast<tinyvr::vrOpenGLCompShader>(m_CalAMRReconCompShader)->Compute(m_DataRes);
 
 		m_CalAMRReconCompShader = tinyvr::vrShader::CreateComp("resources/shaders/compute/reconstructTBAMR_SGMM_comp.glsl");
 		m_CalAMRReconCompShader->Bind();
@@ -1039,8 +986,7 @@ namespace gmm {
 		m_TreeNodeTex->BindUnit(1);
 		m_TreePosTex->BindUnit(2);
 
-		for (int i = 0; i < m_GMMCoeffTexturesList.size(); ++i)
-			m_GMMCoeffTexturesList[i]->BindUnit(i + 3);
+		for (int i = 0; i < m_GMMCoeffTexturesList.size(); ++i)	m_GMMCoeffTexturesList[i]->BindUnit(i + 3);
 
 		m_CalAMRReconCompShader->SetInt("B", m_BlockSize);
 		m_CalAMRReconCompShader->SetInt("PS", patchSize);

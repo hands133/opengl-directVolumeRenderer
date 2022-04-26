@@ -1,7 +1,5 @@
 #version 460 core
 
-#extension GL_NV_shader_atomic_float : require
-
 layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 
 layout(binding = 0, r32f)	uniform writeonly image3D tex_VolumeEntropy;
@@ -23,17 +21,15 @@ int getValueBin(ivec3 p)
 {
 	ivec3 pCopy = p;
 
-	if (pCopy.x < 0)	pCopy.x = -pCopy.x;
-	if (pCopy.y < 0)	pCopy.y = -pCopy.y;
-	if (pCopy.z < 0)	pCopy.z = -pCopy.z;
+	if (p.x < 0)			pCopy.x = -p.x;
+	if (p.y < 0)			pCopy.y = -p.y;
+	if (p.z < 0)			pCopy.z = -p.z;
+	if (p.x >= dataRes.x)	pCopy.x = 2 * (dataRes.x - 1) - p.x;
+	if (p.y >= dataRes.y)	pCopy.y = 2 * (dataRes.y - 1) - p.y;
+	if (p.z >= dataRes.z)	pCopy.z = 2 * (dataRes.z - 1) - p.z;
 
-	if (pCopy.x >= dataRes.x)	pCopy.x = 2 * (dataRes.x - 1) - pCopy.x;
-	if (pCopy.y >= dataRes.y)	pCopy.y = 2 * (dataRes.y - 1) - pCopy.y;
-	if (pCopy.z >= dataRes.z)	pCopy.z = 2 * (dataRes.z - 1) - pCopy.z;
-
-	float v = texelFetch(tex_Volume, pCopy, 0).x;
 	float dv = (vMax - vMin) / float(NumIntervals);
-
+	float v = texelFetch(tex_Volume, pCopy, 0).x;
 	return int((v - vMin) / dv);
 }
 
@@ -66,7 +62,6 @@ void main()
 			}
 
 	float num = pow(float(S), 3.0f);
-
 	float entropy = 0.0;
 	for (int i = 0; i < NumIntervals; ++i)
 	{

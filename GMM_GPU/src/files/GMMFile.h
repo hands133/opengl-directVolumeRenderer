@@ -17,7 +17,7 @@ namespace gmm
 
 	struct GMMBrickData
 	{
-		std::vector<std::vector<GMMBin>> GMMListPerBlock;
+		std::vector<std::vector<std::pair<uint32_t, GMMBin>>> GMMListPerBlock;
 		std::vector<std::array<int, 6>> BlocksListPerBlock;
 	};
 
@@ -46,17 +46,6 @@ namespace gmm
 			return glm::ivec3(blockInfo[3], blockInfo[4], blockInfo[5]);
 		}
 
-		void UpdateGMMBinCoeffs(uint32_t brickIdx, uint32_t blockIdx, const std::vector<GMMBin>& binList)
-		{
-			auto& gmmCoeffsList = m_dataList[brickIdx].second.GMMListPerBlock[blockIdx];
-			TINYVR_ASSERT(binList.size() == gmmCoeffsList.size(), "List Size Doesn't match!");
-
-			std::copy(binList.begin(), binList.end(), gmmCoeffsList.begin());
-		}
-
-		template <typename T>
-		bool reconstruct(std::vector<T>& vec) const;
-
 		std::vector<std::pair<GMMBrickInfo, GMMBrickData>>::const_iterator begin()	const { return m_dataList.begin(); }
 		std::vector<std::pair<GMMBrickInfo, GMMBrickData>>::const_iterator end()	const { return m_dataList.end(); }
 
@@ -66,13 +55,9 @@ namespace gmm
 		friend std::ostream& operator<<(std::ostream& in, const GMMFile& file);
 
 		const void WriteToDir(const std::filesystem::path& dirPath);
+		void ReleaseDataBuffer();
 
 	private:
-
-		// function for reconstruction
-		size_t idxBrickPos(const glm::uvec3& samplePoint) const;
-		float evalAtPos(const glm::uvec3& samplePoint) const;
-
 		void ReadParts(const std::string& baseDir, int i, const glm::uvec3& O, const glm::uvec3& R);
 		bool ReadBlockPerBrick(const std::string& brickBlockPath, const glm::ivec3& offset, int index);
 		bool ReadParamPerBrick(const std::string& brickParamPath, const glm::ivec3& offset, int index);
@@ -86,24 +71,5 @@ namespace gmm
 
 		std::vector<std::pair<GMMBrickInfo, GMMBrickData>> m_dataList;
 	};
-
-	template <typename T>
-	bool GMMFile::reconstruct(std::vector<T>& vec) const
-	{
-		size_t X = m_resolution.x;
-		size_t Y = m_resolution.y;
-		size_t Z = m_resolution.z;
-		vec.resize(X * Y * Z, T(0));
-
-		for (size_t k = 0; k < Z; ++k)
-			for (size_t j = 0; j < Y; ++j)
-				for (size_t i = 0; i < X; ++i)
-				{
-					size_t idx = k * Y * X + j * X + i;
-					vec[idx] = evalAtPos({ i, j, k });
-				}
-
-		return true;
-	}
 }
 

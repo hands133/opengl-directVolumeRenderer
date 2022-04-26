@@ -15,24 +15,6 @@ public:
 		std::filesystem::path SGMMDataSetBaseDir = "S:/SGMM Data";
 		std::filesystem::path SGMMDataSetPicDir = "S:/SGMM Pic";
 		std::string SGMMDataVarName = "";
-		
-		//std::string gmmFileDir = "resources/data/alter/alter-output-8-1-sgmm";
-		//glm::uvec3 res = { 500, 500, 100 };
-		//glm::vec2 valueRange(0.0f, 255.0f);
-		//uint32_t numIntervals = 256;
-
-		//std::string gmmFileDir = "resources/data/stone/stone-output-8-1-stone-sgmm";
-		//glm::uvec3 res = { 300, 300, 300 };
-		//glm::vec2 valueRange(0.0f, 255.0f);
-		//uint32_t numIntervals = 256;
-
-		//std::string gmmFileDir = "resources/data/stone/stone-output-8-1-stone2-sgmm";
-		//glm::uvec3 res = { 300, 300, 300 };
-		//glm::vec2 valueRange(0.0f, 255.0f);
-		//uint32_t numIntervals = 256;
-
-
-
 
 		// SGMM By myself
 		// ================ Isabel ================
@@ -45,7 +27,6 @@ public:
 			//SGMMDataVarName = "CLOUDf07";
 			//valueRange = glm::vec2(-0.001, 0.0025382);
 			//rho = 0.7;
-			//rho = 0;
 			//rho = 0.9;
 			//rho = 0.999;
 			//e0 = 0;
