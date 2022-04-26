@@ -11,11 +11,14 @@ uniform sampler2D octreeNodePos;
 uniform sampler2D coordIn;
 uniform sampler2D coordOut;
 
-uniform sampler3D renderVolume;
+uniform usampler3D volumeTex;
+uniform sampler3D entropyTex;
+uniform bool showVolOrTex;
 uniform sampler1D tFunc;
 
 uniform float vMin;
 uniform float vMax;
+uniform int NumIntervals;
 
 uniform int maxOctreeDepth;
 uniform int patchSize;
@@ -145,6 +148,7 @@ float InterpInCell(vec4 nPosW, float PS, vec3 pos)
     vec3 dis = pos - nPosW.xyz;
     float subBlockSize = nPosW.w / float(patchSize);
     ivec3 idx = ivec3(floor(dis / vec3(subBlockSize)));
+    float dv = (vMax - vMin) / float(NumIntervals);
 
     int i0 = idx.x;
     int j0 = idx.y;
@@ -171,14 +175,46 @@ float InterpInCell(vec4 nPosW, float PS, vec3 pos)
     vec3 node6 = nPosW.xyz + vec3(id6) * vec3(subBlockSize);
     vec3 node7 = nPosW.xyz + vec3(id7) * vec3(subBlockSize);
 
-    float v0 = texture(renderVolume, node0).x;
-    float v1 = texture(renderVolume, node1).x;
-    float v2 = texture(renderVolume, node2).x;
-    float v3 = texture(renderVolume, node3).x;
-    float v4 = texture(renderVolume, node4).x;
-    float v5 = texture(renderVolume, node5).x;
-    float v6 = texture(renderVolume, node6).x;
-    float v7 = texture(renderVolume, node7).x;
+    float v0 = 0.0f;
+    float v1 = 0.0f;
+    float v2 = 0.0f;
+    float v3 = 0.0f;
+    float v4 = 0.0f;
+    float v5 = 0.0f;
+    float v6 = 0.0f;
+    float v7 = 0.0f;
+
+    if (showVolOrTex)
+    {
+        uint b0 = texture(volumeTex, node0).x;
+        uint b1 = texture(volumeTex, node1).x;
+        uint b2 = texture(volumeTex, node2).x;
+        uint b3 = texture(volumeTex, node3).x;
+        uint b4 = texture(volumeTex, node4).x;
+        uint b5 = texture(volumeTex, node5).x;
+        uint b6 = texture(volumeTex, node6).x;
+        uint b7 = texture(volumeTex, node7).x;
+
+        v0 = vMin + float(b0) * dv;
+        v1 = vMin + float(b1) * dv;
+        v2 = vMin + float(b2) * dv;
+        v3 = vMin + float(b3) * dv;
+        v4 = vMin + float(b4) * dv;
+        v5 = vMin + float(b5) * dv;
+        v6 = vMin + float(b6) * dv;
+        v7 = vMin + float(b7) * dv;
+    }
+    else
+    {
+        v0 = texture(entropyTex, node0).x;
+        v1 = texture(entropyTex, node1).x;
+        v2 = texture(entropyTex, node2).x;
+        v3 = texture(entropyTex, node3).x;
+        v4 = texture(entropyTex, node4).x;
+        v5 = texture(entropyTex, node5).x;
+        v6 = texture(entropyTex, node6).x;
+        v7 = texture(entropyTex, node7).x;
+    }
 
     vec3 vd = (pos - node0) / vec3(subBlockSize);
     float v = v0 * (1.0 - vd.x) * (1.0 - vd.y) * (1.0 - vd.z)

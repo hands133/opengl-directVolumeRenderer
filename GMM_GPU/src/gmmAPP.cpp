@@ -18,10 +18,19 @@ public:
 
 		// SGMM By myself
 		// ================ Isabel ================
-		//brickRes = { 4, 3, 2 };
-		//glm::uvec3 res = { 500, 500, 100 };
-		//glm::vec2 valueRange(0.0f);
-		//uint32_t numIntervals = 256;
+		brickRes = { 4, 3, 2 };
+		glm::uvec3 res = { 500, 500, 100 };
+		glm::vec2 valueRange(0.0f);
+		uint32_t numIntervals = 256;
+
+		{	// alter
+			SGMMDataVarName = "alter";
+			valueRange = glm::vec2(0, 256);
+			rho = 0.7;
+			rho = 0.9;
+			rho = 0.999;
+			e0 = 0;
+		}
 
 		{	// CLOUDf07
 			//SGMMDataVarName = "CLOUDf07";
@@ -112,13 +121,13 @@ public:
 		//rho = 0.85;
 
 		// ================ plane ================
-		brickRes = { 4, 3, 2 };
-		glm::uvec3 res = { 512, 512, 512 };
-		glm::vec2 valueRange = glm::vec2(0.0, 256.0);
-		uint32_t numIntervals = 256;
-		
-		SGMMDataVarName = "plane";
-		rho = 0.6;
+		//brickRes = { 4, 3, 2 };
+		//glm::uvec3 res = { 512, 512, 512 };
+		//glm::vec2 valueRange = glm::vec2(0.0, 256.0);
+		//uint32_t numIntervals = 256;
+		//
+		//SGMMDataVarName = "plane";
+		//rho = 0.6;
 		//rho = 0.75;
 		//rho = 0.85;
 

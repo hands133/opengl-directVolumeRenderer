@@ -190,18 +190,24 @@ namespace gmm {
 			m_AMRRCShader->SetFloat("SCR_WIDTH", m_ViewportSize.x);
 			m_AMRRCShader->SetFloat("SCR_HEIGHT", m_ViewportSize.y);
 
+			m_AMRRCShader->SetTexture("volumeTex", m_FullReconVolumeTex);
+			m_AMRRCShader->SetTexture("entropyTex", m_LocalEntropyTex);
+
 			if (m_VisVolOrEntropy) {
-				m_AMRRCShader->SetTexture("renderVolume", m_VolumeTex);
+				m_AMRRCShader->SetBool("showVolOrTex", true);
+
 				m_AMRRCShader->SetTexture("tFunc", m_TFVolume->GetTFTexture());
 				m_AMRRCShader->SetFloat("vMin", m_ValueRange.x);
 				m_AMRRCShader->SetFloat("vMax", m_ValueRange.y);
 			}
 			else {
+				m_AMRRCShader->SetBool("showVolOrTex", false);
+
 				m_AMRRCShader->SetTexture("tFunc", m_TFEntropy->GetTFTexture());
-				m_AMRRCShader->SetTexture("renderVolume", m_LocalEntropyTex);
 				m_AMRRCShader->SetFloat("vMin", m_EntropyRange.x);
 				m_AMRRCShader->SetFloat("vMax", m_EntropyRange.y);
 			}
+			m_AMRRCShader->SetInt("NumIntervals", m_NumIntervals);
 
 			m_AMRRCShader->SetTexture("octreeNodePool", m_TreeNodeTex);
 			m_AMRRCShader->SetTexture("octreeNodePos", m_TreePosTex);
@@ -403,7 +409,6 @@ namespace gmm {
 					m_CameraController->OnResize(viewportPanelSize.x, viewportPanelSize.y);
 				}
 			}
-
 			ImGui::Image((void*)m_DisplayFB->GetColorAttachmentRendererID(), ImVec2{ m_ViewportSize.x, m_ViewportSize.y }, ImVec2{ 0, 1 }, ImVec2{ 1, 0 });
 
 			m_TFVolumeWidget->draw(m_VolumeHistogram, m_VolumeHistRange);
@@ -545,16 +550,16 @@ namespace gmm {
 	void vrGMMLayer::initVolumeTex()
 	{
 		TINYVR_PROFILE_FUNCTION();
+		uint64_t NSamps = m_DataRes.x * m_DataRes.y * m_DataRes.z;
 
-		m_VolumeTex = tinyvr::vrTexture3D::Create(m_DataRes.x, m_DataRes.y, m_DataRes.z,
-			tinyvr::vrTextureFormat::TEXTURE_FMT_RED, tinyvr::vrTextureType::TEXTURE_TYPE_FLT32);
-		m_VolumeTex->SetData(m_DataRes.x * m_DataRes.y * m_DataRes.z);
-
+		m_FullReconVolumeTex = tinyvr::vrTexture3D::Create(m_DataRes.x, m_DataRes.y, m_DataRes.z,
+			tinyvr::vrTextureFormat::TEXTURE_FMT_RED, tinyvr::vrTextureType::TEXTURE_TYPE_U8I);
+		m_FullReconVolumeTex->SetData(NSamps);
+		
 		m_OriginVolumeTex = tinyvr::vrTexture3D::Create(m_DataRes.x, m_DataRes.y, m_DataRes.z,
 			tinyvr::vrTextureFormat::TEXTURE_FMT_RED, tinyvr::vrTextureType::TEXTURE_TYPE_FLT32);
 
-		std::vector<uint8_t> originData(m_DataRes.x * m_DataRes.y * m_DataRes.z, 0x00);
-		m_OriginDataBuffer.resize(m_DataRes.x * m_DataRes.y * m_DataRes.z, 0.0f);
+		m_OriginDataBuffer.resize(NSamps, 0.0f);
 		
 		// For Isabel & Deep Water Impact
 		//auto originalRawFilePath = m_GMMBaseDir / "unsignedcharVolume.raw";
@@ -563,6 +568,7 @@ namespace gmm {
 		//originFile.read((char*)m_OriginDataBuffer.data(), m_DataRes.x * m_DataRes.y * m_DataRes.z * sizeof(float));
 		//originFile.close();
 
+		// For plane, shock lap3d
 		auto originalRawFilePath = m_GMMBaseDir / "unsignedcharVolume.raw";
 		TINYVR_ASSERT(std::filesystem::exists(originalRawFilePath), "Original volume file Doesn't exist!");
 		std::ifstream originFile(originalRawFilePath, std::ios::binary);
@@ -582,12 +588,10 @@ namespace gmm {
 			m_ReconCompShader = tinyvr::vrShader::CreateComp("resources/shaders/compute/reconstruct3DVolume_comp.glsl");
 		m_ReconCompShader->Bind();
 
-		m_VolumeTex->BindImage(0, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_WRITEONLY);
+		m_FullReconVolumeTex->BindImage(0, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_WRITEONLY);
 		for (int i = 0; i < m_GMMCoeffTexturesList.size(); ++i)		m_GMMCoeffTexturesList[i]->BindUnit(i + 1);
 
 		m_ReconCompShader->SetInt("B", m_BlockSize);
-		m_ReconCompShader->SetFloat("vMin", m_ValueRange.x);
-		m_ReconCompShader->SetFloat("vMax", m_ValueRange.y);
 		m_ReconCompShader->SetInt("NumIntervals", m_NumIntervals);
 		m_ReconCompShader->SetInt("NumBricks", m_BrickRes.x * m_BrickRes.y * m_BrickRes.z);
 
@@ -769,7 +773,7 @@ namespace gmm {
 	void vrGMMLayer::initEntropyComponent()
 	{
 		m_LocalEntropyTex = tinyvr::vrTexture3D::Create(m_DataRes.x, m_DataRes.y, m_DataRes.z,
-			tinyvr::vrTextureFormat::TEXTURE_FMT_RED);
+			tinyvr::vrTextureFormat::TEXTURE_FMT_RED, tinyvr::vrTextureType::TEXTURE_TYPE_FLT32);
 		m_LocalEntropyTex->SetData(m_DataRes.x * m_DataRes.y * m_DataRes.z, nullptr);
 			
 		{	// calculate entropy using local histogram
@@ -777,10 +781,8 @@ namespace gmm {
 			m_EntropyLocalHistCompShader->Bind();
 
 			m_LocalEntropyTex->BindImage(0, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_WRITEONLY);
-			m_VolumeTex->BindUnit(1);
+			m_FullReconVolumeTex->BindUnit(1);
 
-			m_EntropyLocalHistCompShader->SetFloat("vMin", m_ValueRange.x);
-			m_EntropyLocalHistCompShader->SetFloat("vMax", m_ValueRange.y);
 			m_EntropyLocalHistCompShader->SetInt("NumIntervals", m_NumIntervals);
 			m_EntropyLocalHistCompShader->SetInt3("dataRes", m_DataRes);
 			m_EntropyLocalHistCompShader->SetInt("SS", 5);
@@ -801,14 +803,29 @@ namespace gmm {
 					}
 		}
 
+		//{
+		//	m_EntropyLocalHistCompShader = tinyvr::vrShader::CreateComp("resources/shaders/compute/calculateLocalHistEntropy_comp.glsl");
+		//	m_EntropyLocalHistCompShader->Bind();
+
+		//	m_LocalEntropyTex->BindImage(0, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_WRITEONLY);
+		//	m_FullReconVolumeTex->BindUnit(1);
+
+		//	m_EntropyLocalHistCompShader->SetInt3("res", m_DataRes);
+		//	m_EntropyLocalHistCompShader->SetFloat("vMin", m_ValueRange.x);
+		//	m_EntropyLocalHistCompShader->SetFloat("vMax", m_ValueRange.y);
+		//	m_EntropyLocalHistCompShader->SetInt("NumIntervals", m_NumIntervals);
+		//	m_EntropyLocalHistCompShader->SetInt("StencilSize", 5);
+
+		//	std::dynamic_pointer_cast<tinyvr::vrOpenGLCompShader>(m_EntropyLocalHistCompShader)->Compute(m_DataRes);
+		//}
+
 		//m_EntopyHistogram = m_LocalEntropyTex->GetHistogram(m_NumIntervals);
 		//auto mM = std::minmax_element(m_EntopyHistogram.begin(), m_EntopyHistogram.end());
 		//m_EntropyHistRange = { *(mM.first), *(mM.second) };
 		m_EntopyHistogram.resize(m_NumIntervals, 0);
 		m_EntropyHistRange = m_EntropyRange;
 
-		//m_EntropyRange = m_LocalEntropyTex->GlobalMinMaxVal();
-		m_EntropyRange = m_ValueRange;
+		m_EntropyRange = m_LocalEntropyTex->GlobalMinMaxVal();
 		TINYVR_CORE_INFO("Entropy range : [{0:>8.4}, {1:>8.4}]", m_EntropyRange.x, m_EntropyRange.y);
 	}
 	
@@ -845,11 +862,10 @@ namespace gmm {
 
 			// calculate entropy value range at each level
 			auto minmaxEntropyCompShader = tinyvr::vrShader::CreateComp("resources/shaders/compute/reconstructTBAMR_EntropyRange_comp.glsl");
+			minmaxEntropyCompShader->Bind();
 
 			for (int i = 0; i < treeMaxDepth; ++i)
 			{
-				minmaxEntropyCompShader->Bind();
-
 				m_AMRMinMaxEntropyRangeTex->BindImage(0, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_READWRITE);
 				m_LocalEntropyTex->BindUnit(1);
 
@@ -975,7 +991,7 @@ namespace gmm {
 	void vrGMMLayer::reconByAMR()
 	{
 		m_ReconVolumeByAMRTex = tinyvr::vrTexture3D::Create(m_DataRes.x, m_DataRes.y, m_DataRes.z,
-			tinyvr::vrTextureFormat::TEXTURE_FMT_RED, tinyvr::vrTextureType::TEXTURE_TYPE_FLT32);
+			tinyvr::vrTextureFormat::TEXTURE_FMT_RED, tinyvr::vrTextureType::TEXTURE_TYPE_U8I);
 		m_ReconVolumeByAMRTex->SetData(m_DataRes.x * m_DataRes.y * m_DataRes.z);
 
 		m_CalAMRReconCompShader = tinyvr::vrShader::CreateComp("resources/shaders/compute/reconstructTBAMR_SGMM_comp.glsl");
@@ -990,9 +1006,6 @@ namespace gmm {
 
 		m_CalAMRReconCompShader->SetInt("B", m_BlockSize);
 		m_CalAMRReconCompShader->SetInt("PS", patchSize);
-
-		m_CalAMRReconCompShader->SetFloat("vMin", m_ValueRange.x);
-		m_CalAMRReconCompShader->SetFloat("vMax", m_ValueRange.y);
 
 		m_CalAMRReconCompShader->SetInt("NumIntervals", m_NumIntervals);
 		m_CalAMRReconCompShader->SetInt("NumBricks", m_BrickRes.x * m_BrickRes.y * m_BrickRes.z);
@@ -1026,14 +1039,16 @@ namespace gmm {
 
 	void gmm::vrGMMLayer::measureRMSE()
 	{
-		std::vector<float> reconAMRBuffer(m_DataRes.x * m_DataRes.y * m_DataRes.z, 0.0f);
+		std::vector<uint8_t> reconAMRBuffer(m_DataRes.x * m_DataRes.y * m_DataRes.z, 0.0f);
 		m_ReconVolumeByAMRTex->GetData(reconAMRBuffer.data());
 
 		double MSE = 0.0;
+		double dv = (m_ValueRange.y - m_ValueRange.x) / m_NumIntervals;
 		for (uint64_t i = 0; i < m_DataRes.x * m_DataRes.y * m_DataRes.z; ++i)
 		{
 			float v1 = m_OriginDataBuffer[i];
-			float v2 = reconAMRBuffer[i];
+			int b2 = reconAMRBuffer[i];
+			float v2 = m_ValueRange.x + b2 * dv;
 			float dv = v1 - v2;
 			MSE += (dv * dv);
 		}
@@ -1045,14 +1060,16 @@ namespace gmm {
 
 	void gmm::vrGMMLayer::measureNMSE()
 	{
-		std::vector<float> reconAMRBuffer(m_DataRes.x * m_DataRes.y * m_DataRes.z, 0.0f);
+		std::vector<uint8_t> reconAMRBuffer(m_DataRes.x * m_DataRes.y * m_DataRes.z, 0.0f);
 		m_ReconVolumeByAMRTex->GetData(reconAMRBuffer.data());
 
 		double nominator = 0.0, denominator = 0.0;
+		double dv = (m_ValueRange.y - m_ValueRange.x) / m_NumIntervals;
 		for (uint64_t i = 0; i < m_DataRes.x * m_DataRes.y * m_DataRes.z; ++i)
 		{
 			float v1 = m_OriginDataBuffer[i];
-			float v2 = reconAMRBuffer[i];
+			int b2 = reconAMRBuffer[i];
+			float v2 = m_ValueRange.x + b2 * dv;
 			float dv = v1 - v2;
 			nominator += (dv * dv);
 			denominator += (v1 * v1);
@@ -1081,7 +1098,7 @@ namespace gmm {
 		if (isFullReconVolume)
 		{
 			saveFileName = fmt::format("{0}_{1}.raw", picPrefixName, "FullRecon");
-			targetTexture = m_VolumeTex;
+			targetTexture = m_FullReconVolumeTex;
 		}
 		else
 		{
@@ -1092,12 +1109,17 @@ namespace gmm {
 			targetTexture = m_ReconVolumeByAMRTex;
 		}
 
-		std::vector<float> buffer(m_DataRes.x * m_DataRes.y * m_DataRes.z, 0.0f);
-		targetTexture->GetData(buffer.data());
-
 		std::filesystem::path targetFilePath = dataDirPath / saveFileName;
-
 		std::ofstream file(targetFilePath, std::ios::binary);
+
+		std::vector<float> buffer(m_DataRes.x * m_DataRes.y * m_DataRes.z, 0.0f);
+		std::vector<uint8_t> storageBuffer(m_DataRes.x * m_DataRes.y * m_DataRes.z, 0x00);
+		targetTexture->GetData(storageBuffer.data());
+
+		double dv = (m_ValueRange.y - m_ValueRange.x) / m_NumIntervals;
+		std::transform(storageBuffer.begin(), storageBuffer.end(), buffer.begin(),
+			[&](uint8_t binIdx) { return m_ValueRange.x + dv * binIdx; });
+
 		file.write((const char*)buffer.data(), m_DataRes.x * m_DataRes.y * m_DataRes.z * sizeof(float));
 		file.close();
 

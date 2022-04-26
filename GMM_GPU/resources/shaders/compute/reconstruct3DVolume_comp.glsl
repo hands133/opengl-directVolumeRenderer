@@ -2,7 +2,7 @@
 
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
-layout(binding = 0, r32f)		uniform writeonly image3D tex_Volume;
+layout(binding = 0, r8ui)		uniform writeonly uimage3D tex_Volume;
 
 layout(binding = 1)				uniform sampler3D tex_GMMCoeff_1;
 layout(binding = 2)				uniform sampler3D tex_GMMCoeff_2;
@@ -13,8 +13,6 @@ float PI = 3.14159265358979323846;
 
 uniform int B;
 
-uniform float vMin;
-uniform float vMax;
 uniform int NumIntervals;
 uniform int NumBricks;
 
@@ -30,7 +28,6 @@ float gaussian1D(float mean, float var2, float x)
 	float xb = float(x - mean);
 	float s2 = float(var2);
 	return v * exp(-0.5f * xb * xb / s2);
-	//return v * exp(-0.5 * (x - mean) * (x - mean) / var2);
 }
 
 float gaussian3D(vec3 means, vec3 var2s, vec3 p)
@@ -110,8 +107,6 @@ void main()
 
 	barrier();
 
-	float dv = (vMax - vMin) / float(NumIntervals);
-
 	// bi [m, M)
 	if (binIdx == 0)
 	{
@@ -123,8 +118,6 @@ void main()
 				p = probBuffer[i];
 				idx = i;
 			}
-
-		float m = vMin + float(idx) * dv;
-		imageStore(tex_Volume, samplePoint, vec4(m));
+		imageStore(tex_Volume, samplePoint, uvec4(idx));
 	}
 }

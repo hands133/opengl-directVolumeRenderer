@@ -11,13 +11,13 @@ uniform int currentLevel;
 uniform int texW;
 uniform int PS;		// patch-size
 
-void CalCellMinMaxEntropy(vec4 cellInfo)
+ivec2 CalCellMinMaxEntropy(vec4 cellInfo)
 {
 	float w0 = cellInfo.w / float(PS);
 	float wOffset = w0 / 2.0f;
 
-	float vMin = 100.0f;
-	float vMax = -1.0f;
+	float eMin = 100.0f;
+	float eMax = -1.0f;
 	
 	for (int i = 0; i < PS; ++i)
 		for (int j = 0; j < PS; ++j)
@@ -26,18 +26,14 @@ void CalCellMinMaxEntropy(vec4 cellInfo)
 				vec3 pSamp = cellInfo.xyz + vec3(wOffset) + vec3(w0) * vec3(i, j, k);
 				float entropy = texture(tex_Entropy, pSamp).x;
 	
-				if (entropy < vMin)	vMin = entropy;
-				if (entropy > vMax)	vMax = entropy;
+				if (entropy < eMin)	eMin = entropy;
+				if (entropy > eMax)	eMax = entropy;
 			}
 	
-	int vMinInt = int(vMin * 1.0e9f);
-	int vMaxInt = int(vMax * 1.0e9f);
-	
-	ivec2 minEIter = ivec2(currentLevel, 0);
-	ivec2 maxEIter = ivec2(currentLevel, 1);
-	
-	imageAtomicMin(tex_MinMaxEntropy, minEIter, vMinInt);
-	imageAtomicMax(tex_MinMaxEntropy, maxEIter, vMaxInt);
+	int eMinInt = int(eMin * 1.0e9f);
+	int eMaxInt = int(eMax * 1.0e9f);
+
+	return ivec2(eMinInt, eMaxInt);
 }
 
 void main()
@@ -54,5 +50,11 @@ void main()
 	int x0 = seqL;
 
 	vec4 cellInfo = vec4(vec3(x0, y0, z0) * vec3(cellW), cellW);
-	CalCellMinMaxEntropy(cellInfo);
+	ivec2 mM = CalCellMinMaxEntropy(cellInfo);
+
+	ivec2 minEIter = ivec2(currentLevel, 0);
+	ivec2 maxEIter = ivec2(currentLevel, 1);
+	
+	imageAtomicMin(tex_MinMaxEntropy, minEIter, mM.x);
+	imageAtomicMax(tex_MinMaxEntropy, maxEIter, mM.y);
 }

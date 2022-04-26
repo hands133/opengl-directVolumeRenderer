@@ -1,7 +1,7 @@
 #version 460 core
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
-layout(binding = 0, r32f)   uniform writeonly image3D tex_ReconResult;
+layout(binding = 0, r8ui)   uniform writeonly uimage3D tex_ReconResult;
 
 layout(binding = 1)         uniform usampler2D tex_OctreeNode;
 layout(binding = 2)         uniform sampler2D tex_OctreePos;
@@ -15,9 +15,6 @@ float PI = 3.141592653589793238462643383279;
 
 uniform int B;
 uniform int PS;
-
-uniform float vMin;
-uniform float vMax;
 
 uniform int NumIntervals;
 uniform int NumBricks;
@@ -85,13 +82,10 @@ void main()
     probBuffer[binIdx] = calProbAtEachBin(o + vec3(0.5f) * vec3(patchW), binIdx);
     barrier();
 
-	float dv = (vMax - vMin) / float(NumIntervals);
-    
     if (binIdx == 0)
     {
 		int idx = calBinIdxWithMaxProb();
-        float m = vMin + float(idx) * dv;
-        imageStore(tex_ReconResult, samplePoint, vec4(m));
+        imageStore(tex_ReconResult, samplePoint, uvec4(idx));
     }
 }
 

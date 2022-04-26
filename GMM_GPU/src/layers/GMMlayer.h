@@ -128,7 +128,7 @@ namespace gmm {
 		std::vector<float> m_EntopyHistogram;
 		glm::vec2 m_VolumeHistRange, m_EntropyHistRange;
 
-		tinyvr::vrRef<tinyvr::vrTexture3D> m_VolumeTex;
+		tinyvr::vrRef<tinyvr::vrTexture3D> m_FullReconVolumeTex;
 		tinyvr::vrRef<tinyvr::vrTexture1D> m_TFVolumeTex, m_TFEntroyTex;
 		tinyvr::vrRef<tinyvr::vrTransferFunction> m_TFVolume, m_TFEntropy;
 		tinyvr::vrRef<tinyvr::vrTransferFunctionWidget> m_TFVolumeWidget, m_TFEntropyWidget;

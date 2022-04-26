@@ -3,7 +3,7 @@
 layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 
 layout(binding = 0, r32f)	uniform writeonly image3D tex_VolumeEntropy;
-layout(binding = 1)			uniform sampler3D tex_Volume;
+layout(binding = 1)			uniform usampler3D tex_Volume;
 
 uniform ivec3 res;
 
@@ -48,10 +48,8 @@ float localEntropyLocalHist(ivec3 p, int S, ivec3 res)
 				if (j > res.y - 1)	s = 2 * (res.y - 1) - j;
 				if (k > res.z - 1)	t = 2 * (res.z - 1) - k;
 
-				float v = texelFetch(tex_Volume, ivec3(r, s, t), 0).x;
-				int vidx = int(floor((v - vMin) / dv));
-
-				hist[vidx] += 1.0f;
+				int bIdx = int(texelFetch(tex_Volume, ivec3(r, s, t), 0).x);
+				hist[bIdx] += 1.0f;
 			}
 
 	float entropy = 0.0f;
