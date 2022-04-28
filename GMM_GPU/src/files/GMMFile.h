@@ -25,13 +25,14 @@ namespace gmm
 	class GMMFile
 	{
 	public:
-		GMMFile(int blockSide = 8, int numInterval = 256, int numBricks = 24);
+		GMMFile(int blockSide = 8, int numInterval = 256, int numBricks = 24, int numMaxKernelPerBin = 4);
 		~GMMFile();
 
 		bool read(const std::string& baseInfoDir);
 
 		int GetmaxKernelNum() const { return m_maxKernelNumPerBin; }
 		int GetmaxBlockNum() const { return m_maxBinNumPerBrick; }
+		std::vector<int> GetmaxIntervalDepths() const { return m_maxIntervalDepthPerKernel; }
 		const std::pair<GMMBrickInfo, GMMBrickData>& getBrick(int index) { return m_dataList[index]; }
 
 		const glm::ivec3 getBlockBrickCoord(uint32_t brickIdx, uint32_t brickBlockIdx) const
@@ -52,23 +53,23 @@ namespace gmm
 		const std::pair<GMMBrickInfo, GMMBrickData>& operator[](size_t i) const { return m_dataList[i]; }
 		std::pair<GMMBrickInfo, GMMBrickData>& operator[](size_t i) { return m_dataList[i]; }
 
-		friend std::ostream& operator<<(std::ostream& in, const GMMFile& file);
+		void Info();
 
-		const void WriteToDir(const std::filesystem::path& dirPath);
 		void ReleaseDataBuffer();
 
 	private:
 		void ReadParts(const std::string& baseDir, int i, const glm::uvec3& O, const glm::uvec3& R);
 		bool ReadBlockPerBrick(const std::string& brickBlockPath, const glm::ivec3& offset, int index);
 		bool ReadParamPerBrick(const std::string& brickParamPath, const glm::ivec3& offset, int index);
+		void calMaxIntervalDepthPerKernel();
 
 	private:
 		int m_BlockSide, m_numInterval, m_numBricks;
 		unsigned int m_maxKernelNumPerBin;
 		unsigned int m_maxBinNumPerBrick;
+		std::vector<int> m_maxIntervalDepthPerKernel;
 
 		glm::uvec3 m_resolution;
-
 		std::vector<std::pair<GMMBrickInfo, GMMBrickData>> m_dataList;
 	};
 }

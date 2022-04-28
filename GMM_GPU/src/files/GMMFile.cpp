@@ -1,17 +1,19 @@
 #include "GMMFile.h"
 
 #include <fstream>
+#include <set>
 
 #include "tinyVR.h"
 
 namespace gmm
 {
-	GMMFile::GMMFile(int blockSide, int numInterval, int numBricks)
+	GMMFile::GMMFile(int blockSide, int numInterval, int numBricks, int numMaxKernelPerBin)
 		: m_BlockSide(blockSide), m_numInterval(numInterval),
-		m_numBricks(numBricks), m_maxKernelNumPerBin(4),
+		m_numBricks(numBricks), m_maxKernelNumPerBin(numMaxKernelPerBin),
 		m_maxBinNumPerBrick(0), m_resolution(glm::uvec3(0))
 	{
 		m_dataList.resize(m_numBricks);
+		m_maxIntervalDepthPerKernel.resize(m_maxKernelNumPerBin, 0);
 	}
 
 	GMMFile::~GMMFile() { }
@@ -42,82 +44,16 @@ namespace gmm
 			auto R = glm::uvec3(std::stoi(dx), std::stoi(dy), std::stoi(dz));
 
 			//ReadParts(baseDir, i, O, R);
-			tPool.emplace_back(&GMMFile::ReadParts, this,
-				std::cref(baseDir), i, O, R);
+			tPool.emplace_back(&GMMFile::ReadParts, this, std::cref(baseDir), i, O, R);
 		}
 		for (auto& t : tPool)	t.join();
+
+		calMaxIntervalDepthPerKernel();
 
 		const auto& back = m_dataList.back();
 		m_resolution = back.first.origin + back.first.span;
 
 		return true;
-	}
-
-	const void GMMFile::WriteToDir(const std::filesystem::path& dirPath)
-	{
-		if (!std::filesystem::exists(dirPath))
-			std::filesystem::create_directory(dirPath);
-		// brick info
-		auto brickInfoFilePath = dirPath / fmt::format("{0}-blocks-Info.txt", m_numBricks);
-		std::ofstream oBrickInfoFile(brickInfoFilePath);
-
-		for (auto& info : m_dataList)
-		{
-			auto& brickInfo = info.first;
-			oBrickInfoFile << fmt::format("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n",
-				brickInfo.origin.x, brickInfo.origin.y, brickInfo.origin.z,
-				brickInfo.span.x, brickInfo.span.y, brickInfo.span.z);
-		}
-		oBrickInfoFile.close();
-
-		// SGMM info
-		for (int i = 0; i < m_numBricks; ++i)
-		{
-			auto& sgmmBrickInfo = m_dataList[i].second;
-			auto& sgmmBlockInfo = sgmmBrickInfo.BlocksListPerBlock;
-			auto& sgmmBlockCoeffs = sgmmBrickInfo.GMMListPerBlock;
-
-			auto sgmmCoeffsFilePath = dirPath / ("spatialGMM-" + std::to_string(i) + "-0.txt");
-			auto sgmmBlocksInfoPath = dirPath / ("blockInfo-" + std::to_string(i) + "-8.txt");
-
-			std::ofstream sgmmCoeffsFile(sgmmCoeffsFilePath);
-			std::ofstream sgmmBlocksFile(sgmmBlocksInfoPath);
-			// file header
-			sgmmCoeffsFile << "block\tbin\tprobability\tgaussian number\tgmm\n";
-			// each block
-			uint32_t numBrickBlocks = sgmmBlockCoeffs.size();
-			for (int blockIdx = 0; blockIdx < numBrickBlocks; ++blockIdx)
-			{
-				sgmmCoeffsFile << blockIdx << ' ';
-				auto& sgmmCoeffsEachBlock = sgmmBlockCoeffs[blockIdx];
-				auto& sgmmInfoEachBlock = sgmmBlockInfo[blockIdx];
-
-				sgmmBlocksFile << fmt::format("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n",
-					sgmmInfoEachBlock[0], sgmmInfoEachBlock[1], sgmmInfoEachBlock[2],
-					sgmmInfoEachBlock[3], sgmmInfoEachBlock[4], sgmmInfoEachBlock[5]);
-
-				for (auto& binPair : sgmmCoeffsEachBlock)
-				{
-					int binIdx = binPair.first;
-					auto& bin = binPair.second;
-
-					sgmmCoeffsFile << fmt::format("{0} {1} {2} ", binIdx, bin.GetProb(), bin.GetKernelNum());
-					for (int k = 0; k < bin.GetKernelNum(); ++k)
-					{
-						auto& kernel = bin.GetKernel(k);
-						sgmmCoeffsFile << fmt::format("{0} {1} {2} {3} {4} {5} {6} ",
-							kernel.weight,
-							kernel.funcs.x.mean, kernel.funcs.y.mean, kernel.funcs.z.mean,
-							kernel.funcs.x.var, kernel.funcs.y.var, kernel.funcs.z.var);
-					}
-					sgmmCoeffsFile << '\n';
-				}
-			}
-			sgmmCoeffsFile.close();
-			sgmmBlocksFile.close();
-		}
-
-		return void();
 	}
 
 	// save brick res and block info, delete gmm coeffs
@@ -142,8 +78,8 @@ namespace gmm
 		if (p.first.numBlocks > m_maxBinNumPerBrick)
 			m_maxBinNumPerBrick = p.first.numBlocks;
 
-		std::string brickBlockFilePath = baseDir + "/blockInfo-" + std::to_string(i) + "-8.txt";
-		std::string brickParamFilePath = baseDir + "/spatialGmm-" + std::to_string(i) + "-0.txt";
+		std::string brickBlockFilePath = fmt::format("{0}/{1}-{2}-{3}.txt", baseDir, "blockInfo", i, m_BlockSide);
+		std::string brickParamFilePath = fmt::format("{0}/{1}-{2}-{3}.txt", baseDir, "spatialGMM", i, 0);
 		bool GMMListPerBlockIsRead = ReadBlockPerBrick(brickBlockFilePath, p.first.origin, i);
 		bool GMMParamPerBlockIsRead = ReadParamPerBrick(brickParamFilePath, p.first.origin, i);
 
@@ -182,7 +118,6 @@ namespace gmm
 			blockList[i][5] = std::stoi(dz);
 		}
 		file.close();
-
 		return true;
 	}
 
@@ -194,7 +129,6 @@ namespace gmm
 			TINYVR_FATAL("Read File {0} Failed!", brickParamPath);
 			TINYVR_ASSERT(false, "Read File Failed!");
 		}
-
 		std::string str;
 		std::getline(file, str);	// skip first line
 
@@ -227,17 +161,19 @@ namespace gmm
 				file >> meansStr[0] >> meansStr[1] >> meansStr[2];
 				file >> varsStr[0] >> varsStr[1] >> varsStr[2];
 
-				means.x = std::stod(meansStr[0]);
-				means.y = std::stod(meansStr[1]);
-				means.z = std::stod(meansStr[2]);
+				if (i < m_maxKernelNumPerBin)
+				{
+					means.x = std::stod(meansStr[0]);
+					means.y = std::stod(meansStr[1]);
+					means.z = std::stod(meansStr[2]);
 
-				vars.x = std::stod(varsStr[0]);
-				vars.y = std::stod(varsStr[1]);
-				vars.z = std::stod(varsStr[2]);
+					vars.x = std::stod(varsStr[0]);
+					vars.y = std::stod(varsStr[1]);
+					vars.z = std::stod(varsStr[2]);
 
-				GaussianKernel kernel(std::stod(kernelWeight), means, vars);
-
-				bin.Push(kernel);
+					GaussianKernel kernel(std::stod(kernelWeight), means, vars);
+					bin.Push(kernel);
+				}
 			}
 			gmmList[std::stoi(blockIdx)].emplace_back(
 				std::make_pair(std::stoi(binIdx), bin));
@@ -245,22 +181,43 @@ namespace gmm
 		m_dataList[index].first.numKernels = numKernels;
 
 		file.close();
-
 		return true;
 	}
 
-	std::ostream& operator<<(std::ostream& in, const GMMFile& file)
+	void GMMFile::calMaxIntervalDepthPerKernel()
+	{
+		float maxBinWeight = 0.0f;
+		std::vector<std::set<int>> ks(m_maxKernelNumPerBin, std::set<int>());
+		for (auto& brickInfo : m_dataList)
+			for (auto& blockList : brickInfo.second.GMMListPerBlock)
+				for (auto& binPair : blockList)
+				{
+					uint32_t binIdx = binPair.first;
+					auto& binGMM = binPair.second;
+
+					for (int k = 0; k < binGMM.GetKernelNum(); ++k)	ks[k].insert(binIdx);
+					if (binGMM.GetProb() > maxBinWeight)	maxBinWeight = binGMM.GetProb();
+				}
+
+		float p = maxBinWeight + 2550.0f;
+		float d = p - maxBinWeight;
+		std::transform(ks.begin(), ks.end(), m_maxIntervalDepthPerKernel.begin(),
+			[](const std::set<int>& s) { return s.size(); });
+	}
+
+	void GMMFile::Info()
 	{
 		TINYVR_INFO("{1:=^{2}} {0} {1:=^{2}}", "GMMFile", "", 20);
 
-		TINYVR_INFO("Total bricks : {0}", file.m_numBricks);
-		TINYVR_INFO("Max block numbers : {0}", file.GetmaxBlockNum());
-		TINYVR_INFO("Max kernel number in each bin : {0}", file.GetmaxKernelNum());
+		TINYVR_INFO("Total bricks : {0}", m_numBricks);
+		TINYVR_INFO("Max block numbers : {0}", GetmaxBlockNum());
+		TINYVR_INFO("Max kernel number in each bin : {0}", GetmaxKernelNum());
+		TINYVR_INFO("Max interval depth of each kernel : {0}", fmt::join(m_maxIntervalDepthPerKernel, ", "));
 		TINYVR_INFO("For each brick, it contains kernels like");
 
-		for (int i = 0; i < file.m_numBricks; ++i)
+		for (int i = 0; i < m_numBricks; ++i)
 		{
-			const auto& info = file.m_dataList[i].first;
+			const auto& info = m_dataList[i].first;
 			TINYVR_INFO("Brick {0:>3} has {1:>4} blocks, from [{2:>4}, {3:>4}, {4:>4}] to [{5:>4}, {6:>4}, {7:>4}], total {8:>6} kernels",
 				i, info.numBlocks,
 				info.origin.x, info.origin.y, info.origin.z,
@@ -269,7 +226,5 @@ namespace gmm
 				info.origin.z + info.span.z - 1,
 				info.numKernels);
 		}
-
-		return in;
 	}
 }

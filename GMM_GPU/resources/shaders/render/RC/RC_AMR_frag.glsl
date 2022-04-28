@@ -6,18 +6,18 @@ uniform float SCR_WIDTH;
 uniform float SCR_HEIGHT;
 
 uniform usampler2D octreeNodePool;
-uniform sampler2D octreeNodePos;
 
 uniform sampler2D coordIn;
 uniform sampler2D coordOut;
 
-uniform usampler3D volumeTex;
-uniform sampler3D entropyTex;
+uniform usampler3D volumeTexU8;
+uniform sampler3D entropyTexF32;
 uniform bool showVolOrTex;
 uniform sampler1D tFunc;
 
 uniform float vMin;
 uniform float vMax;
+uniform ivec3 dataRes;
 uniform int NumIntervals;
 
 uniform int maxOctreeDepth;
@@ -35,10 +35,16 @@ uniform vec4 GColor;    // Grid-line color
 float traverseOctree(vec3 pos);
 vec4 GetColor(vec3 pos);
 
+
+float lerp(float a, float b, float t);
+float lerp3(float v000, float v001, float v010, float v011,
+	float v100, float v101, float v110, float v111, vec3 t);
+
 int LVL = -1;
 bool xMost = false;
 bool yMost = false;
 bool zMost = false;
+
 
 void main()
 {
@@ -50,7 +56,6 @@ void main()
     if (cdIn == cdOut)  discard;
 
     float stepSize = 0.001f;
-
     vec3 dir = cdOut - cdIn;
 
     vec3 currentPos = cdIn;
@@ -67,11 +72,10 @@ void main()
         if (showGrid)   tmpColor = GetColor(currentPos);
         else            tmpColor = texture(tFunc, (traverseOctree(currentPos) - vMin) / (vMax - vMin));
 
-
         // draw clip
         if (clipVolume)
         {
-            //if (currentPos.z < clipCoord_x) tmpColor.a = 0.0f;
+            // if (currentPos.z < clipCoord_x) tmpColor.a = 0.0f;
             if (currentPos.x > clipCoord_x) tmpColor.a = 0.0f;
             else                            tmpColor.a = 1.0f;
         }
@@ -106,13 +110,23 @@ bool IsLeafNode(uint R)
 vec4 traverseOctree(vec3 pos, int maxSearchDepth)
 {
     ivec2 iter = ivec2(0);
-    vec4 nPosW = vec4(0.0f);
+    vec4 nPosW = vec4(0.0f, 0.0f, 0.0f, 1.0f);
 
     LVL = -1;
+    bool updateLVL = true;
     int tmpLVL = 0;
+
+    float minAxis = 1.0e8;
+    minAxis = (float(dataRes.x) < minAxis) ? float(dataRes.x) : minAxis;
+    minAxis = (float(dataRes.y) < minAxis) ? float(dataRes.y) : minAxis;
+    minAxis = (float(dataRes.z) < minAxis) ? float(dataRes.z) : minAxis;
+    float xScale = dataRes.x / minAxis;
+    float yScale = dataRes.y / minAxis;
+    float zScale = dataRes.z / minAxis;
+    vec3 scale = vec3(xScale, yScale, zScale);
+
     while (true)
     {
-        nPosW = texelFetch(octreeNodePos, iter, 0);
         if (LVL == -1) {
             float borderWidth = (1.0f / 300.0f) * pow(0.8, float(tmpLVL));
             vec3 dis = pos - nPosW.xyz;
@@ -122,31 +136,52 @@ vec4 traverseOctree(vec3 pos, int maxSearchDepth)
             zMost = min(abs(dis.z), abs(dis.z - nPosW.w)) < borderWidth;
 
             bool showGridCond = false;
-            //if (clipVolume)     showGridCond = xMost || yMost || (xMost && zMost) || (yMost && zMost);
+            // if (clipVolume)     showGridCond = xMost || yMost || (xMost && zMost) || (yMost && zMost);
             if (clipVolume)     showGridCond = yMost || zMost || (xMost && yMost) || (xMost && zMost);
             else                showGridCond = (xMost && yMost) || (xMost && zMost) || (yMost && zMost);
-            if (showGridCond)   LVL = tmpLVL;
+            if (showGridCond && updateLVL)   LVL = tmpLVL;
         }
 
         int I = 0;
-        if (pos.x > nPosW.x + nPosW.w / 2.0f)  I += 1;
-        if (pos.y > nPosW.y + nPosW.w / 2.0f)  I += 2;
-        if (pos.z > nPosW.z + nPosW.w / 2.0f)  I += 4;
+        if (pos.x > nPosW.x + nPosW.w / 2.0f)   { I += 1; nPosW.x += nPosW.w / 2.0f; }
+        if (pos.y > nPosW.y + nPosW.w / 2.0f)   { I += 2; nPosW.y += nPosW.w / 2.0f; };
+        if (pos.z > nPosW.z + nPosW.w / 2.0f)   { I += 4; nPosW.z += nPosW.w / 2.0f; };
+        nPosW.w /= 2.0f;
 
         uint R = texelFetch(octreeNodePool, iter, 0).x;
         if (IsLeafNode(R))  break;
 
         iter = GetChildOffset(R) + ivec2(I, 0);
         tmpLVL++;
-        if (tmpLVL > maxSearchDepth) break;
+        if (tmpLVL > maxSearchDepth) { updateLVL = false; };
+
     }
     return nPosW;
+}
+
+// need to lerp integer texture to float
+float InterpIntegerSampler(vec3 pos)
+{
+    return float(texture(volumeTexU8, pos).x);
+    // vec3 bp = pos * vec3(dataRes - ivec3(1));
+    // ivec3 O = ivec3(bp);
+    // vec3 t = bp - vec3(O);
+    // 
+	// float b0 = float(texelFetch(volumeTexU8, O + ivec3(0, 0, 0), 0).x);
+	// float b1 = float(texelFetch(volumeTexU8, O + ivec3(1, 0, 0), 0).x);
+	// float b2 = float(texelFetch(volumeTexU8, O + ivec3(0, 1, 0), 0).x);
+	// float b3 = float(texelFetch(volumeTexU8, O + ivec3(1, 1, 0), 0).x);
+	// float b4 = float(texelFetch(volumeTexU8, O + ivec3(0, 0, 1), 0).x);
+	// float b5 = float(texelFetch(volumeTexU8, O + ivec3(1, 0, 1), 0).x);
+	// float b6 = float(texelFetch(volumeTexU8, O + ivec3(0, 1, 1), 0).x);
+	// float b7 = float(texelFetch(volumeTexU8, O + ivec3(1, 1, 1), 0).x);
+    // return lerp3(b0, b1, b2, b3, b4, b5, b6, b7, t.xyz);
 }
 
 float InterpInCell(vec4 nPosW, float PS, vec3 pos)
 {
     vec3 dis = pos - nPosW.xyz;
-    float subBlockSize = nPosW.w / float(patchSize);
+    float subBlockSize = nPosW.w / float(PS);
     ivec3 idx = ivec3(floor(dis / vec3(subBlockSize)));
     float dv = (vMax - vMin) / float(NumIntervals);
 
@@ -186,45 +221,29 @@ float InterpInCell(vec4 nPosW, float PS, vec3 pos)
 
     if (showVolOrTex)
     {
-        uint b0 = texture(volumeTex, node0).x;
-        uint b1 = texture(volumeTex, node1).x;
-        uint b2 = texture(volumeTex, node2).x;
-        uint b3 = texture(volumeTex, node3).x;
-        uint b4 = texture(volumeTex, node4).x;
-        uint b5 = texture(volumeTex, node5).x;
-        uint b6 = texture(volumeTex, node6).x;
-        uint b7 = texture(volumeTex, node7).x;
-
-        v0 = vMin + float(b0) * dv;
-        v1 = vMin + float(b1) * dv;
-        v2 = vMin + float(b2) * dv;
-        v3 = vMin + float(b3) * dv;
-        v4 = vMin + float(b4) * dv;
-        v5 = vMin + float(b5) * dv;
-        v6 = vMin + float(b6) * dv;
-        v7 = vMin + float(b7) * dv;
+        v0 = InterpIntegerSampler(node0);
+        v1 = InterpIntegerSampler(node1);
+        v2 = InterpIntegerSampler(node2);
+        v3 = InterpIntegerSampler(node3);
+        v4 = InterpIntegerSampler(node4);
+        v5 = InterpIntegerSampler(node5);
+        v6 = InterpIntegerSampler(node6);
+        v7 = InterpIntegerSampler(node7);
     }
     else
     {
-        v0 = texture(entropyTex, node0).x;
-        v1 = texture(entropyTex, node1).x;
-        v2 = texture(entropyTex, node2).x;
-        v3 = texture(entropyTex, node3).x;
-        v4 = texture(entropyTex, node4).x;
-        v5 = texture(entropyTex, node5).x;
-        v6 = texture(entropyTex, node6).x;
-        v7 = texture(entropyTex, node7).x;
+        v0 = texture(entropyTexF32, node0).x;
+        v1 = texture(entropyTexF32, node1).x;
+        v2 = texture(entropyTexF32, node2).x;
+        v3 = texture(entropyTexF32, node3).x;
+        v4 = texture(entropyTexF32, node4).x;
+        v5 = texture(entropyTexF32, node5).x;
+        v6 = texture(entropyTexF32, node6).x;
+        v7 = texture(entropyTexF32, node7).x;
     }
 
-    vec3 vd = (pos - node0) / vec3(subBlockSize);
-    float v = v0 * (1.0 - vd.x) * (1.0 - vd.y) * (1.0 - vd.z)
-        + v1 * vd.x * (1.0 - vd.y) * (1.0 - vd.z)
-        + v2 * (1.0 - vd.x) * vd.y * (1.0 - vd.z)
-        + v3 * vd.x * vd.y * (1.0 - vd.z)
-        + v4 * (1.0 - vd.x) * (1.0 - vd.y) * vd.z
-        + v5 * vd.x * (1.0 - vd.y) * vd.z
-        + v6 * (1.0 - vd.x) * vd.y * vd.z
-        + v7 * vd.x * vd.y * vd.z;
+    vec3 t = (pos - node0) / vec3(subBlockSize);
+    float v = lerp3 (v0, v1, v2, v3, v4, v5, v6, v7, t);
 
     return v;
 }
@@ -237,12 +256,17 @@ float traverseOctree(vec3 pos)
 
 vec4 GetColor(vec3 pos)
 {
-    vec4 nPosW = traverseOctree(pos, UserDefinedDepth);
+    float gridClipX = 0.0f;
+    float gridClipY = 0.0f;
+    float gridClipZ = 0.0f;
+    bool atEdge = false;
 
+    vec4 nPosW = traverseOctree(pos, UserDefinedDepth);
+    // if (LVL >= 0 && pos.y > 0.5)   return GColor;
     if (LVL >= 0)   return GColor;
 
-    if (showPatch && patchSize > 1)
-    {
+    float edgeDis = 0.0f;
+    if (showPatch && patchSize > 1) {
         float subBlockSize = nPosW.w / float(patchSize);
         vec3 dis = pos - nPosW.xyz;
         vec3 idx = floor(dis / vec3(subBlockSize));
@@ -250,21 +274,44 @@ vec4 GetColor(vec3 pos)
         vec3 subDis = pos - (nPosW.xyz + idx * vec3(subBlockSize));
         float subBorderWidth = 1.0f / 750.0f * pow(0.9f, float(LVL));
 
-        bool subxMost = min(abs(subDis.x), abs(subDis.x - nPosW.w)) < subBorderWidth;
-        bool subyMost = min(abs(subDis.y), abs(subDis.y - nPosW.w)) < subBorderWidth;
-        bool subzMost = min(abs(subDis.z), abs(subDis.z - nPosW.w)) < subBorderWidth;
+        float minDisX = min(abs(subDis.x), abs(subDis.x - nPosW.w));
+        float minDisY = min(abs(subDis.y), abs(subDis.y - nPosW.w));
+        float minDisZ = min(abs(subDis.z), abs(subDis.z - nPosW.w));
+
+        bool subxMost = minDisX < subBorderWidth;
+        bool subyMost = minDisY < subBorderWidth;
+        bool subzMost = minDisZ < subBorderWidth;
 
         bool showGridCond = false;
 
-        //if (clipVolume) showGridCond = subxMost || subyMost || (subxMost && subzMost) || (subyMost && subzMost);
-        if (clipVolume) showGridCond = subyMost || subzMost || (subxMost && subyMost) || (subxMost && subzMost);
+        if (clipVolume) showGridCond = subxMost || subyMost || (subxMost && subzMost) || (subyMost && subzMost);
+        //if (clipVolume) showGridCond = subyMost || subzMost || (subxMost && subyMost) || (subxMost && subzMost);
         else            showGridCond = (subxMost && subyMost) || (subxMost && subzMost) || (subyMost && subzMost);
+        // if (showGridCond && pos.y > 0.5)   return GColor;
         if (showGridCond)   return GColor;
     }
-
     float v = InterpInCell(nPosW, patchSize, pos);
     vec4 tmpColor = texture(tFunc, (v - vMin) / (vMax - vMin), 0.0f);
     tmpColor.a = 1.0 - pow(1.0 - tmpColor.a, GAMMA);
-    
+
     return tmpColor;
+}
+
+float lerp(float a, float b, float t)
+{
+	return (1.0 - t) * a + t * b;
+}
+
+float lerp3(float v000, float v001, float v010, float v011,
+	float v100, float v101, float v110, float v111, vec3 t)
+{
+	float v00 = lerp(v000, v001, t.x);
+	float v01 = lerp(v010, v011, t.x);
+	float v10 = lerp(v100, v101, t.x);
+	float v11 = lerp(v110, v111, t.x);
+
+	float v0 = lerp(v00, v01, t.y);
+	float v1 = lerp(v10, v11, t.y);
+
+	return lerp(v0, v1, t.z);
 }

@@ -4,16 +4,18 @@ layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 
 layout(binding = 0, r32f)	uniform writeonly image3D tex_VolumeEntropy;
 layout(binding = 1)			uniform usampler3D tex_Volume;
+// layout(binding = 1)			uniform sampler3D tex_Volume;
 
 float PI = 3.14159265358979323846;
 
+uniform float vMin;
+uniform float vMax;
 uniform int NumIntervals;
 uniform ivec3 dataRes;
 uniform int SS;
 
 uniform ivec3 O;
 uniform ivec3 R;
-
 
 int getValueBin(ivec3 p)
 {
@@ -26,9 +28,11 @@ int getValueBin(ivec3 p)
 	if (p.y >= dataRes.y)	pCopy.y = 2 * (dataRes.y - 1) - p.y;
 	if (p.z >= dataRes.z)	pCopy.z = 2 * (dataRes.z - 1) - p.z;
 
-	// return int(texelFetch(tex_Volume, pCopy, 0).x);
-	vec3 coord = vec3(pCopy) / vec3(dataRes - ivec3(1));
-	return int(texture(tex_Volume, coord).x);
+	return int(texelFetch(tex_Volume, pCopy, 0).x);
+
+	// float v = texelFetch(tex_Volume, pCopy, 0).x;
+	// float dv = (vMax - vMin) / float(NumIntervals);
+	// return int((v - vMin) / dv);
 }
 
 void main()

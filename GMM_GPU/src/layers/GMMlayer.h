@@ -70,7 +70,6 @@ namespace gmm {
 
 		tinyvr::vrRef<gmm::GMMFile> m_GMMFile;
 
-		tinyvr::vrRef<tinyvr::vrTexture3D> m_OriginVolumeTex;
 		std::vector<float> m_OriginDataBuffer;
 
 		/// ============ member for controlling ============
@@ -106,7 +105,7 @@ namespace gmm {
 		float m_rho;
 		float m_e0;
 
-		tinyvr::vrRef<tinyvr::vrTexture2D> m_TreePosTex, m_TreeNodeTex;
+		tinyvr::vrRef<tinyvr::vrTexture2D> m_TreeNodeTex;
 		tinyvr::vrRef<tinyvr::vrShader> m_ConOctreeFlagCompShader;
 		tinyvr::vrRef<tinyvr::vrShader> m_ConOctreeRefineCompShader;
 

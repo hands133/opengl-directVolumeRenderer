@@ -67,14 +67,14 @@ namespace gmm {
 		initEntropyComponent();
 
 		constructOctree();
-		reconByAMR();
+		//reconByAMR();
 
-		OutputAMRReconVolume("S://SGMM Recon", true);
-		OutputAMRReconVolume("S://SGMM Recon", false);
+		//OutputAMRReconVolume("S://SGMM Recon", true);
+		//OutputAMRReconVolume("S://SGMM Recon", false);
 
 		// Reconstruction Quality
-		measureRMSE();
-		measureNMSE();
+		//measureRMSE();
+		//measureNMSE();
 	}
 
 	vrGMMLayer::~vrGMMLayer()
@@ -190,27 +190,25 @@ namespace gmm {
 			m_AMRRCShader->SetFloat("SCR_WIDTH", m_ViewportSize.x);
 			m_AMRRCShader->SetFloat("SCR_HEIGHT", m_ViewportSize.y);
 
-			m_AMRRCShader->SetTexture("volumeTex", m_FullReconVolumeTex);
-			m_AMRRCShader->SetTexture("entropyTex", m_LocalEntropyTex);
+			m_AMRRCShader->SetTexture("volumeTexU8", m_FullReconVolumeTex);
+			m_AMRRCShader->SetTexture("entropyF32", m_LocalEntropyTex);
 
 			if (m_VisVolOrEntropy) {
 				m_AMRRCShader->SetBool("showVolOrTex", true);
-
 				m_AMRRCShader->SetTexture("tFunc", m_TFVolume->GetTFTexture());
 				m_AMRRCShader->SetFloat("vMin", m_ValueRange.x);
 				m_AMRRCShader->SetFloat("vMax", m_ValueRange.y);
 			}
 			else {
 				m_AMRRCShader->SetBool("showVolOrTex", false);
-
 				m_AMRRCShader->SetTexture("tFunc", m_TFEntropy->GetTFTexture());
 				m_AMRRCShader->SetFloat("vMin", m_EntropyRange.x);
 				m_AMRRCShader->SetFloat("vMax", m_EntropyRange.y);
 			}
+			m_AMRRCShader->SetInt3("dataRes", m_DataRes);
 			m_AMRRCShader->SetInt("NumIntervals", m_NumIntervals);
 
 			m_AMRRCShader->SetTexture("octreeNodePool", m_TreeNodeTex);
-			m_AMRRCShader->SetTexture("octreeNodePos", m_TreePosTex);
 
 			m_AMRRCShader->SetTexture("coordIn", m_ProjInFB->GetColorAttachment());
 			m_AMRRCShader->SetTexture("coordOut", m_ProjOutFB->GetColorAttachment());
@@ -387,6 +385,16 @@ namespace gmm {
 				if (m_ShowGrid)	saveFileName += "_G";
 
 				saveFileName += ".png";
+
+
+				for (int i = 0; i < W; ++i)
+					for (int j = 0; j < H / 2; ++j)
+					{
+						uint32_t srcIdx = j * W + i;
+						uint32_t dstIdx = (H - j - 1) * W + i;
+						std::swap(imageBufferUChar[srcIdx], imageBufferUChar[dstIdx]);
+					}
+
 				encodePNG(saveFileName.c_str(), (const unsigned char*)imageBufferUChar.data(), W, H);
 			}
 			ImGui::End();
@@ -465,7 +473,6 @@ namespace gmm {
 			for (int k = 1; k < m_BrickRes.z + 1; ++k)
 				m_ZBlockGap[k] = (m_ZGap[k] - m_ZGap[k - 1]) / m_BlockSize + m_ZBlockGap[k - 1];
 		}
-
 	}
 
 	void vrGMMLayer::initGMMFile()
@@ -512,7 +519,6 @@ namespace gmm {
 				for (int i = 0; i < I; ++i)
 				{
 					const auto& GMMBinList = data.GMMListPerBlock[i];
-
 					for (auto& binPair : GMMBinList)
 					{
 						const auto& binIdx = binPair.first;
@@ -555,29 +561,22 @@ namespace gmm {
 		m_FullReconVolumeTex = tinyvr::vrTexture3D::Create(m_DataRes.x, m_DataRes.y, m_DataRes.z,
 			tinyvr::vrTextureFormat::TEXTURE_FMT_RED, tinyvr::vrTextureType::TEXTURE_TYPE_U8I);
 		m_FullReconVolumeTex->SetData(NSamps);
-		
-		m_OriginVolumeTex = tinyvr::vrTexture3D::Create(m_DataRes.x, m_DataRes.y, m_DataRes.z,
-			tinyvr::vrTextureFormat::TEXTURE_FMT_RED, tinyvr::vrTextureType::TEXTURE_TYPE_FLT32);
 
 		m_OriginDataBuffer.resize(NSamps, 0.0f);
 		
-		// For Isabel & Deep Water Impact
-		//auto originalRawFilePath = m_GMMBaseDir / "unsignedcharVolume.raw";
-		//TINYVR_ASSERT(std::filesystem::exists(originalRawFilePath), "Original volume file Doesn't exist!");
-		//std::ifstream originFile(originalRawFilePath, std::ios::binary);
-		//originFile.read((char*)m_OriginDataBuffer.data(), m_DataRes.x * m_DataRes.y * m_DataRes.z * sizeof(float));
-		//originFile.close();
-
-		// For plane, shock lap3d
 		auto originalRawFilePath = m_GMMBaseDir / "unsignedcharVolume.raw";
 		TINYVR_ASSERT(std::filesystem::exists(originalRawFilePath), "Original volume file Doesn't exist!");
+		// For Isabel & Deep Water Impact
 		std::ifstream originFile(originalRawFilePath, std::ios::binary);
-		std::vector<uint8_t> originRawBuffer(m_DataRes.x * m_DataRes.y * m_DataRes.z, 0x00);
-		originFile.read((char*)originRawBuffer.data(), m_DataRes.x * m_DataRes.y * m_DataRes.z);
+		originFile.read((char*)m_OriginDataBuffer.data(), m_DataRes.x * m_DataRes.y * m_DataRes.z * sizeof(float));
 		originFile.close();
-		std::copy(originRawBuffer.begin(), originRawBuffer.end(), m_OriginDataBuffer.begin());
 
-		m_OriginVolumeTex->SetData(m_DataRes.x * m_DataRes.y * m_DataRes.z, m_OriginDataBuffer.data());
+		// For plane, shock lap3d
+		//std::ifstream originFile(originalRawFilePath, std::ios::binary);
+		//std::vector<uint8_t> originRawBuffer(m_DataRes.x * m_DataRes.y * m_DataRes.z, 0x00);
+		//originFile.read((char*)originRawBuffer.data(), m_DataRes.x * m_DataRes.y * m_DataRes.z);
+		//originFile.close();
+		//std::copy(originRawBuffer.begin(), originRawBuffer.end(), m_OriginDataBuffer.begin());
 	}
 
 	void vrGMMLayer::reconVol()
@@ -592,6 +591,8 @@ namespace gmm {
 		for (int i = 0; i < m_GMMCoeffTexturesList.size(); ++i)		m_GMMCoeffTexturesList[i]->BindUnit(i + 1);
 
 		m_ReconCompShader->SetInt("B", m_BlockSize);
+		m_ReconCompShader->SetFloat("vMin", m_ValueRange.x);
+		m_ReconCompShader->SetFloat("vMax", m_ValueRange.y);
 		m_ReconCompShader->SetInt("NumIntervals", m_NumIntervals);
 		m_ReconCompShader->SetInt("NumBricks", m_BrickRes.x * m_BrickRes.y * m_BrickRes.z);
 
@@ -741,6 +742,8 @@ namespace gmm {
 			m_ModelMat = glm::rotate(glm::mat4(1.0f), glm::radians(180.0f), { 0.0f, 1.0f, 0.0f }) * m_ModelMat;
 
 			// Isabel : none
+			//m_ModelMat = glm::rotate(glm::mat4(1.0f), glm::radians(-30.0f), { 1.0f, 0.0f, 0.0f }) * m_ModelMat;
+			//m_ModelMat = glm::rotate(glm::mat4(1.0f), glm::radians(-30.0f), { 0.0f, 1.0f, 0.0f }) * m_ModelMat;
 			//m_ModelMat = glm::rotate(glm::mat4(1.0f), glm::radians(180.0f), { 0.0f, 1.0f, 0.0f }) * m_ModelMat;
 			// Deep Water Impact
 			// Asteroid : v02
@@ -783,6 +786,8 @@ namespace gmm {
 			m_LocalEntropyTex->BindImage(0, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_WRITEONLY);
 			m_FullReconVolumeTex->BindUnit(1);
 
+			m_EntropyLocalHistCompShader->SetFloat("vMin", m_ValueRange.x);
+			m_EntropyLocalHistCompShader->SetFloat("vMax", m_ValueRange.y);
 			m_EntropyLocalHistCompShader->SetInt("NumIntervals", m_NumIntervals);
 			m_EntropyLocalHistCompShader->SetInt3("dataRes", m_DataRes);
 			m_EntropyLocalHistCompShader->SetInt("SS", 5);
@@ -847,11 +852,7 @@ namespace gmm {
 			// [Pos Pool]	r: x0  g : y0  b : z0  w : node size
 			m_TreeNodeTex = tinyvr::vrTexture2D::Create(treeTexWidth, treeTexHeight,
 				tinyvr::vrTextureFormat::TEXTURE_FMT_RED, tinyvr::vrTextureType::TEXTURE_TYPE_U32I);
-			m_TreePosTex = tinyvr::vrTexture2D::Create(treeTexWidth, treeTexHeight,
-				tinyvr::vrTextureFormat::TEXTURE_FMT_RGBA, tinyvr::vrTextureType::TEXTURE_TYPE_FLT32);
-
 			m_TreeNodeTex->SetData(treeTexWidth * treeTexHeight);
-			m_TreePosTex->SetData(treeTexWidth * treeTexHeight);
 		}
 
 		std::vector<glm::vec2> ERangePerLayer(treeMaxDepth, glm::vec2(0));
@@ -882,8 +883,8 @@ namespace gmm {
 			std::cout << "Entropy Range : ";
 			for (int i = 0; i < treeMaxDepth; ++i)
 			{
-				float m = minmaxBuffer[i] / 1.0e9;
-				float M = minmaxBuffer[i + treeMaxDepth] / 1.0e9;
+				float m = minmaxBuffer[i] / 1.0e8;
+				float M = minmaxBuffer[i + treeMaxDepth] / 1.0e8;
 				ERangePerLayer[i] = { m, M };
 			}
 
@@ -905,7 +906,6 @@ namespace gmm {
 				for (int i = 0; i < eBuffer.size(); ++i)
 				{
 					float ri = pow(R, i);
-					//float ei = (1.0 - ri) * EMinMax.y + ri * EMinMax.x;
 					float ei = (1.0 - ri) * EMinMax.y + ri * range.x;
 
 					glm::vec2 Ri = ERangePerLayer[i];
@@ -921,8 +921,7 @@ namespace gmm {
 				m_ConOctreeFlagCompShader->Bind();
 				
 				m_TreeNodeTex->BindImage(0, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_READWRITE);
-				m_TreePosTex->BindImage(1, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_READWRITE);
-				m_LocalEntropyTex->BindUnit(2);
+				m_LocalEntropyTex->BindUnit(1);
 
 				m_ConOctreeFlagCompShader->SetInt("texW", treeTexWidth);
 				m_ConOctreeFlagCompShader->SetInt("PS", patchSize);
@@ -937,7 +936,6 @@ namespace gmm {
 				m_ConOctreeRefineCompShader->Bind();
 
 				m_TreeNodeTex->BindImage(0, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_READWRITE);
-				m_TreePosTex->BindImage(1, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_READWRITE);
 
 				m_ConOctreeRefineCompShader->SetInt("texW", treeTexWidth);
 				m_ConOctreeRefineCompShader->SetInt("PS", patchSize);
@@ -971,7 +969,11 @@ namespace gmm {
 				uint32_t nBytesGT256 = nInnerNodes + (patchSize * patchSize * patchSize) * nLeafNodes / 2;
 				uint32_t tBytesLT256 = (patchSize * patchSize * patchSize) * (nInnerNodes + nLeafNodes) / 4;
 				uint32_t tBytesGT256 = (patchSize * patchSize * patchSize) * (nInnerNodes + nLeafNodes) / 2;
-				uint32_t nOriginBytes = m_DataRes.x * m_DataRes.y * m_DataRes.z * sizeof(float);
+				// for lap3d, shock, plane, Isabel(alter), DWI(stone1), DWI(stone2)
+				uint32_t nOriginBytes = m_DataRes.x * m_DataRes.y * m_DataRes.z;
+
+				// for lap3dF32, Isabel(...), DWI(snd, tev, v02)
+				//uint32_t nOriginBytes = m_DataRes.x * m_DataRes.y * m_DataRes.z * sizeof(float);
 
 				TINYVR_INFO("Build TB-AMR Finished, with inner nodes = {0:>8},\n"
 					"\tleaf nodes = {1:>8}, total {2:>8} nodes,\n"
@@ -998,11 +1000,9 @@ namespace gmm {
 		m_CalAMRReconCompShader->Bind();
 
 		m_ReconVolumeByAMRTex->BindImage(0, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_WRITEONLY);
-
 		m_TreeNodeTex->BindUnit(1);
-		m_TreePosTex->BindUnit(2);
 
-		for (int i = 0; i < m_GMMCoeffTexturesList.size(); ++i)	m_GMMCoeffTexturesList[i]->BindUnit(i + 3);
+		for (int i = 0; i < m_GMMCoeffTexturesList.size(); ++i)	m_GMMCoeffTexturesList[i]->BindUnit(i + 2);
 
 		m_CalAMRReconCompShader->SetInt("B", m_BlockSize);
 		m_CalAMRReconCompShader->SetInt("PS", patchSize);
@@ -1030,7 +1030,6 @@ namespace gmm {
 
 					m_CalAMRReconCompShader->SetInt3("O", O);
 					m_CalAMRReconCompShader->SetInt3("R", R);
-
 					m_CalAMRReconCompShader->SetInt("BRICK_IDX", k * m_BrickRes.y * m_BrickRes.x + j * m_BrickRes.x + i);
 
 					std::dynamic_pointer_cast<tinyvr::vrOpenGLCompShader>(m_CalAMRReconCompShader)->Compute(R);
@@ -1092,7 +1091,6 @@ namespace gmm {
 			std::filesystem::create_directories(dataDirPath);
 
 		tinyvr::vrRef<tinyvr::vrTexture3D> targetTexture;
-
 		std::string saveFileName = "";
 		
 		if (isFullReconVolume)
@@ -1113,12 +1111,12 @@ namespace gmm {
 		std::ofstream file(targetFilePath, std::ios::binary);
 
 		std::vector<float> buffer(m_DataRes.x * m_DataRes.y * m_DataRes.z, 0.0f);
-		std::vector<uint8_t> storageBuffer(m_DataRes.x * m_DataRes.y * m_DataRes.z, 0x00);
-		targetTexture->GetData(storageBuffer.data());
 
 		double dv = (m_ValueRange.y - m_ValueRange.x) / m_NumIntervals;
-		std::transform(storageBuffer.begin(), storageBuffer.end(), buffer.begin(),
-			[&](uint8_t binIdx) { return m_ValueRange.x + dv * binIdx; });
+		std::vector<uint8_t> fullReconUCharBuffer(m_DataRes.x * m_DataRes.y * m_DataRes.z);
+		targetTexture->GetData(fullReconUCharBuffer.data());
+		std::transform(fullReconUCharBuffer.begin(), fullReconUCharBuffer.end(), buffer.begin(),
+			[&](uint8_t idx) { return m_ValueRange.x + static_cast<int>(idx) * dv; });
 
 		file.write((const char*)buffer.data(), m_DataRes.x * m_DataRes.y * m_DataRes.z * sizeof(float));
 		file.close();

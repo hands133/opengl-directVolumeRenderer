@@ -18,19 +18,10 @@ public:
 
 		// SGMM By myself
 		// ================ Isabel ================
-		brickRes = { 4, 3, 2 };
-		glm::uvec3 res = { 500, 500, 100 };
-		glm::vec2 valueRange(0.0f);
-		uint32_t numIntervals = 256;
-
-		{	// alter
-			SGMMDataVarName = "alter";
-			valueRange = glm::vec2(0, 256);
-			rho = 0.7;
-			rho = 0.9;
-			rho = 0.999;
-			e0 = 0;
-		}
+		//brickRes = { 4, 3, 2 };
+		//glm::uvec3 res = { 500, 500, 100 };
+		//glm::vec2 valueRange(0.0f);
+		//uint32_t numIntervals = 256;
 
 		{	// CLOUDf07
 			//SGMMDataVarName = "CLOUDf07";
@@ -46,7 +37,6 @@ public:
 			//rho = 0.72;
 			//rho = 0.75;
 			//rho = 0.8;
-			//rho = 1.0;
 			//e0 = 0;
 		}
 		{	// QVAPORf07
@@ -64,6 +54,14 @@ public:
 			//rho = 0.62;
 			//rho = 0.69;
 			//e0 = 0;
+		}
+		{	// alter
+			//SGMMDataVarName = "alter";
+			//valueRange = glm::vec2(0, 256);
+			//rho = 0.60;
+			//rho = 0.65;
+			//rho = 0.72;
+			//e0 = 1.3;
 		}
 
 		// ================ Deep Water Impact ================
@@ -93,20 +91,72 @@ public:
 			//valueRange = glm::vec2(0, 1);
 			//rho = 0.6;
 			//rho = 0.78;
+			//rho = 0.94;
+			//e0 = 0;
+		}
+		{	// stone 1
+			//SGMMDataVarName = "stone1";
+			//valueRange = glm::vec2(0, 256);
+			//rho = 0.6;
+			//rho = 0.72;
 			//rho = 0.85;
+			//e0 = 0;
+		}
+		{	// stone 2
+			//SGMMDataVarName = "stone2";
+			//valueRange = glm::vec2(0, 256);
+			//rho = 0.6;
+			//rho = 0.72;
+			//rho = 0.85;
+
 			//e0 = 0;
 		}
 
 		// ================ lap3d ================
-		//brickRes = { 3, 4, 2 };
+		brickRes = { 3, 4, 2 };
+		glm::uvec3 res = { 256, 256, 512 };
+		glm::vec2 valueRange = glm::vec2(0.0, 256.0);
+		uint32_t numIntervals = 256;
+
+		valueRange = glm::vec2(0.0, 256.0);
+		SGMMDataVarName = "lap3d";
+
+		//glm::uvec3 res = { 512, 512, 1024 };
+		//brickRes = { 4, 4, 8 };
+		//valueRange = glm::vec2(9.393370624568124e-20, 0.44742774963378906);
+		//SGMMDataVarName = "lap3dF32_1024_b8";
+		//valueRange = glm::vec2(9.393370624568124e-20, 0.44742774963378906);
+		//SGMMDataVarName = "lap3dF32";
+		//blockSize = 6;
+		//SGMMDataVarName = "lap3dF32_b6";
+
+
+		//valueRange = glm::vec2(9.393370624568124e-20, 0.44742774963378906);
+		//SGMMDataVarName = "lap3dF32_1024_b8";
+
+		//brickRes = { 3, 3, 7 };
+		//glm::uvec3 res = { 350, 350, 700 };
+		//glm::vec2 valueRange = glm::vec2(0.0, 256.0);
+		//uint32_t numIntervals = 256;
+
+		//blockSize = 6;
+		//valueRange = glm::vec2(7.471811320796687e-19, 0.3604208827018738);
+		//SGMMDataVarName = "lap3dF32_700_b6";
+
+		//brickRes = { 4, 4, 8 };
 		//glm::uvec3 res = { 256, 256, 512 };
 		//glm::vec2 valueRange = glm::vec2(0.0, 256.0);
 		//uint32_t numIntervals = 256;
 
-		//SGMMDataVarName = "lap3d";
+		//blockSize = 4;
+		//valueRange = glm::vec2(7.471811320796687e-19, 0.3604208827018738);
+		//SGMMDataVarName = "lap3dF32_512_b4";
+		
 		//rho = 0.5;
 		//rho = 0.65;
 		//rho = 0.8;
+		// Fuck
+		//rho = 0.9;
 		//rho = 1.0;
 		
 		// ================ shock ================

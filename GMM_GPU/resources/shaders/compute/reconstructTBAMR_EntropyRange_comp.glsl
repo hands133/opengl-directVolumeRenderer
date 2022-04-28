@@ -18,20 +18,20 @@ ivec2 CalCellMinMaxEntropy(vec4 cellInfo)
 
 	float eMin = 100.0f;
 	float eMax = -1.0f;
-	
-	for (int i = 0; i < PS; ++i)
-		for (int j = 0; j < PS; ++j)
-			for (int k = 0; k < PS; ++k)
-			{
-				vec3 pSamp = cellInfo.xyz + vec3(wOffset) + vec3(w0) * vec3(i, j, k);
+
+	for (int i = 0; i < PS + 1; ++i)
+		for (int j = 0; j < PS + 1; ++j)
+			for (int k = 0; k < PS + 1; ++k)
+			{	
+				vec3 pSamp = cellInfo.xyz + vec3(w0) * vec3(i, j, k);
 				float entropy = texture(tex_Entropy, pSamp).x;
 	
 				if (entropy < eMin)	eMin = entropy;
 				if (entropy > eMax)	eMax = entropy;
 			}
-	
-	int eMinInt = int(eMin * 1.0e9f);
-	int eMaxInt = int(eMax * 1.0e9f);
+
+	int eMinInt = int(eMin * 1.0e8f);
+	int eMaxInt = int(eMax * 1.0e8f);
 
 	return ivec2(eMinInt, eMaxInt);
 }
