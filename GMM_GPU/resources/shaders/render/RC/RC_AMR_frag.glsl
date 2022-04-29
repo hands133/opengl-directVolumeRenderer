@@ -45,6 +45,12 @@ bool xMost = false;
 bool yMost = false;
 bool zMost = false;
 
+bool isInInverval(float l, float r, float v)
+{
+    float m = min(l, r);
+    float M = max(l, r);
+    return (v >= m && v <= M);
+}
 
 void main()
 {
@@ -66,32 +72,40 @@ void main()
     float numSamp = length(dir) / stepSize;
     float clipCoord_x = clipPlane;
 
-    for (int i = 0; i < numSamp; ++i)
+    if (clipVolume)
     {
+        float t = (clipCoord_x - cdIn.x) / (cdOut.x - cdIn.x);
+        currentPos.x = clipCoord_x;
+        currentPos.y = cdIn.y + t * (cdOut.y - cdIn.y);
+        currentPos.z = cdIn.z + t * (cdOut.z - cdIn.z);
+        
         vec4 tmpColor = vec4(0.0f);
         if (showGrid)   tmpColor = GetColor(currentPos);
         else            tmpColor = texture(tFunc, (traverseOctree(currentPos) - vMin) / (vMax - vMin));
-
-        // draw clip
-        if (clipVolume)
+        color = tmpColor.xyz;
+        alpha = isInInverval(cdIn.x, cdOut.x, clipCoord_x) ? 1.0f : 0.0f;
+    }
+    else
+    {
+        for (int i = 0; i < numSamp; ++i)
         {
-            // if (currentPos.z < clipCoord_x) tmpColor.a = 0.0f;
-            if (currentPos.x > clipCoord_x) tmpColor.a = 0.0f;
-            else                            tmpColor.a = 1.0f;
-        }
+            vec4 tmpColor = vec4(0.0f);
+            if (showGrid)   tmpColor = GetColor(currentPos);
+            else            tmpColor = texture(tFunc, (traverseOctree(currentPos) - vMin) / (vMax - vMin));
 
-        if (tmpColor.a > 0.0)
-        {
-            if(!showGrid)   tmpColor.a = 1.0 - pow(1.0 - tmpColor.a, GAMMA);
-            color += (1.0 - alpha) * tmpColor.rgb * tmpColor.a;
-            alpha += (1.0 - alpha) * tmpColor.a;
-        }
-        currentPos += deltaDir;
+            if (tmpColor.a > 0.0)
+            {
+                if(!showGrid)   tmpColor.a = 1.0 - pow(1.0 - tmpColor.a, GAMMA);
+                color += (1.0 - alpha) * tmpColor.rgb * tmpColor.a;
+                alpha += (1.0 - alpha) * tmpColor.a;
+            }
+            currentPos += deltaDir;
 
-        if (alpha >= 1.0)   // if grid line has trasparency
-        {
-            alpha = 1.0;
-            break;
+            if (alpha >= 1.0)   // if grid line has trasparency
+            {
+                alpha = 1.0;
+                break;
+            }
         }
     }
     FragColor = vec4(color, alpha);
@@ -162,20 +176,25 @@ vec4 traverseOctree(vec3 pos, int maxSearchDepth)
 // need to lerp integer texture to float
 float InterpIntegerSampler(vec3 pos)
 {
-    return float(texture(volumeTexU8, pos).x);
-    // vec3 bp = pos * vec3(dataRes - ivec3(1));
-    // ivec3 O = ivec3(bp);
-    // vec3 t = bp - vec3(O);
-    // 
-	// float b0 = float(texelFetch(volumeTexU8, O + ivec3(0, 0, 0), 0).x);
-	// float b1 = float(texelFetch(volumeTexU8, O + ivec3(1, 0, 0), 0).x);
-	// float b2 = float(texelFetch(volumeTexU8, O + ivec3(0, 1, 0), 0).x);
-	// float b3 = float(texelFetch(volumeTexU8, O + ivec3(1, 1, 0), 0).x);
-	// float b4 = float(texelFetch(volumeTexU8, O + ivec3(0, 0, 1), 0).x);
-	// float b5 = float(texelFetch(volumeTexU8, O + ivec3(1, 0, 1), 0).x);
-	// float b6 = float(texelFetch(volumeTexU8, O + ivec3(0, 1, 1), 0).x);
-	// float b7 = float(texelFetch(volumeTexU8, O + ivec3(1, 1, 1), 0).x);
-    // return lerp3(b0, b1, b2, b3, b4, b5, b6, b7, t.xyz);
+    float v = 0.0f;
+    if (clipVolume)
+    {
+        vec3 bp = pos * vec3(dataRes - ivec3(1));
+        ivec3 O = ivec3(bp);
+        vec3 t = bp - vec3(O);
+        
+	    float b0 = float(texelFetch(volumeTexU8, O + ivec3(0, 0, 0), 0).x);
+	    float b1 = float(texelFetch(volumeTexU8, O + ivec3(1, 0, 0), 0).x);
+	    float b2 = float(texelFetch(volumeTexU8, O + ivec3(0, 1, 0), 0).x);
+	    float b3 = float(texelFetch(volumeTexU8, O + ivec3(1, 1, 0), 0).x);
+	    float b4 = float(texelFetch(volumeTexU8, O + ivec3(0, 0, 1), 0).x);
+	    float b5 = float(texelFetch(volumeTexU8, O + ivec3(1, 0, 1), 0).x);
+	    float b6 = float(texelFetch(volumeTexU8, O + ivec3(0, 1, 1), 0).x);
+	    float b7 = float(texelFetch(volumeTexU8, O + ivec3(1, 1, 1), 0).x);
+        return lerp3(b0, b1, b2, b3, b4, b5, b6, b7, t.xyz);
+    }
+    else    return float(texture(volumeTexU8, pos).x);
+    return v;
 }
 
 float InterpInCell(vec4 nPosW, float PS, vec3 pos)

@@ -830,7 +830,8 @@ namespace gmm {
 		m_EntopyHistogram.resize(m_NumIntervals, 0);
 		m_EntropyHistRange = m_EntropyRange;
 
-		m_EntropyRange = m_LocalEntropyTex->GlobalMinMaxVal();
+		//m_EntropyRange = m_LocalEntropyTex->GlobalMinMaxVal();
+		m_EntropyRange = { 0, 4.8 };
 		TINYVR_CORE_INFO("Entropy range : [{0:>8.4}, {1:>8.4}]", m_EntropyRange.x, m_EntropyRange.y);
 	}
 	

@@ -113,13 +113,13 @@ public:
 		}
 
 		// ================ lap3d ================
-		brickRes = { 3, 4, 2 };
-		glm::uvec3 res = { 256, 256, 512 };
-		glm::vec2 valueRange = glm::vec2(0.0, 256.0);
-		uint32_t numIntervals = 256;
+		//brickRes = { 3, 4, 2 };
+		//glm::uvec3 res = { 256, 256, 512 };
+		//glm::vec2 valueRange = glm::vec2(0.0, 256.0);
+		//uint32_t numIntervals = 256;
 
-		valueRange = glm::vec2(0.0, 256.0);
-		SGMMDataVarName = "lap3d";
+		//valueRange = glm::vec2(0.0, 256.0);
+		//SGMMDataVarName = "lap3d";
 
 		//glm::uvec3 res = { 512, 512, 1024 };
 		//brickRes = { 4, 4, 8 };
@@ -134,14 +134,14 @@ public:
 		//valueRange = glm::vec2(9.393370624568124e-20, 0.44742774963378906);
 		//SGMMDataVarName = "lap3dF32_1024_b8";
 
-		//brickRes = { 3, 3, 7 };
-		//glm::uvec3 res = { 350, 350, 700 };
-		//glm::vec2 valueRange = glm::vec2(0.0, 256.0);
-		//uint32_t numIntervals = 256;
+		brickRes = { 4, 4, 7 };
+		glm::uvec3 res = { 350, 350, 700 };
+		glm::vec2 valueRange = glm::vec2(0.0, 256.0);
+		uint32_t numIntervals = 256;
 
-		//blockSize = 6;
+		blockSize = 6;
 		//valueRange = glm::vec2(7.471811320796687e-19, 0.3604208827018738);
-		//SGMMDataVarName = "lap3dF32_700_b6";
+		SGMMDataVarName = "lap3dF32_700_b6";
 
 		//brickRes = { 4, 4, 8 };
 		//glm::uvec3 res = { 256, 256, 512 };
@@ -156,7 +156,7 @@ public:
 		//rho = 0.65;
 		//rho = 0.8;
 		// Fuck
-		//rho = 0.9;
+		rho = 0.9;
 		//rho = 1.0;
 		
 		// ================ shock ================

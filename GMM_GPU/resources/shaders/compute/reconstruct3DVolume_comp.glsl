@@ -3,7 +3,6 @@
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
 layout(binding = 0, r8ui)		uniform writeonly uimage3D tex_Volume;
-// layout(binding = 0, r32f)		uniform writeonly image3D tex_Volume;
 
 layout(binding = 1)				uniform sampler3D tex_GMMCoeff_1;
 layout(binding = 2)				uniform sampler3D tex_GMMCoeff_2;
@@ -51,13 +50,17 @@ vec2 evaluateValuePerTex(ivec3 texCoord, vec3 p, sampler3D GMMCoefftex)
 	vec4 var2s = texelFetch(GMMCoefftex, coordVar2, 0);
 
 	float binWeight = means.w;
-	float kernelValue = var2s.w * gaussian3D(means.xyz, var2s.xyz, p);
+	float kernelWeight = var2s.w;
+	float kernelValue = kernelWeight * gaussian3D(means.xyz, var2s.xyz, p);
 
 	return vec2(binWeight, kernelValue);
 }
 
 float evaluateProb(vec3 p, ivec3 texCoord)
 {
+	float binWeight = texelFetch(tex_GMMCoeff_1, texCoord, 0).x;
+	if (binWeight == 0.0)	return 0.0;
+
 	vec2 V1 = evaluateValuePerTex(texCoord, p, tex_GMMCoeff_1);
 	vec2 V2 = evaluateValuePerTex(texCoord, p, tex_GMMCoeff_2);
 	vec2 V3 = evaluateValuePerTex(texCoord, p, tex_GMMCoeff_3);
