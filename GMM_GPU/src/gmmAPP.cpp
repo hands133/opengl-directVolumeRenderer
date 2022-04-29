@@ -140,7 +140,7 @@ public:
 		uint32_t numIntervals = 256;
 
 		blockSize = 6;
-		//valueRange = glm::vec2(7.471811320796687e-19, 0.3604208827018738);
+		valueRange = glm::vec2(0.0, 256.0);
 		SGMMDataVarName = "lap3dF32_700_b6";
 
 		//brickRes = { 4, 4, 8 };
