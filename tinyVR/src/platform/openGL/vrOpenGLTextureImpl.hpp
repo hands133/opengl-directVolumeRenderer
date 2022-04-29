@@ -129,7 +129,6 @@ namespace tinyvr {
     inline glm::vec2 vrOpenGLTextureImpl<dim>::GlobalMinMax(GLuint texID, vrTextureFormat format, vrTextureType type, GLuint lvl, uint32_t items)
     {
         glm::vec2 minmax(0.0f, 0.0f);
-
         int formatScales = 1;
         int typeBytes = 1;
 

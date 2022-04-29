@@ -1,10 +1,12 @@
 #version 460 core
 
+#extension GL_NV_shader_atomic_float : require
+
 layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 
 layout(binding = 0, r32f)	uniform writeonly image3D tex_VolumeEntropy;
-layout(binding = 1)			uniform usampler3D tex_Volume;
-// layout(binding = 1)			uniform sampler3D tex_Volume;
+layout(binding = 1, r32ui)	uniform coherent uimage1D tex_EntropyMinMax;
+layout(binding = 2)			uniform usampler3D tex_Volume;
 
 float PI = 3.14159265358979323846;
 
@@ -71,4 +73,7 @@ void main()
 		entropy += (-v * log(v));
 	}
 	imageStore(tex_VolumeEntropy, sampP, vec4(entropy));
+
+	imageAtomicMin(tex_EntropyMinMax, 0, uint(entropy * 1.0e8));
+	imageAtomicMax(tex_EntropyMinMax, 1, uint(entropy * 1.0e8));
 }
