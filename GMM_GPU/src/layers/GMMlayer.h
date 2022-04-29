@@ -131,6 +131,7 @@ namespace gmm {
 		tinyvr::vrRef<tinyvr::vrTexture1D> m_TFVolumeTex, m_TFEntroyTex;
 		tinyvr::vrRef<tinyvr::vrTransferFunction> m_TFVolume, m_TFEntropy;
 		tinyvr::vrRef<tinyvr::vrTransferFunctionWidget> m_TFVolumeWidget, m_TFEntropyWidget;
+		tinyvr::vrRef<tinyvr::vrTexture1D> m_MinMaxValueTex;
 
 		tinyvr::vrRef<tinyvr::vrShader> m_AMRRCShader, m_DisplayShader;
 		tinyvr::vrRef<tinyvr::vrShader> m_ProjShader, m_RCShader;

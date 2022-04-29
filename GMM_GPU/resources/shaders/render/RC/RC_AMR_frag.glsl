@@ -158,8 +158,8 @@ vec4 traverseOctree(vec3 pos, int maxSearchDepth)
 
         int I = 0;
         if (pos.x > nPosW.x + nPosW.w / 2.0f)   { I += 1; nPosW.x += nPosW.w / 2.0f; }
-        if (pos.y > nPosW.y + nPosW.w / 2.0f)   { I += 2; nPosW.y += nPosW.w / 2.0f; };
-        if (pos.z > nPosW.z + nPosW.w / 2.0f)   { I += 4; nPosW.z += nPosW.w / 2.0f; };
+        if (pos.y > nPosW.y + nPosW.w / 2.0f)   { I += 2; nPosW.y += nPosW.w / 2.0f; }
+        if (pos.z > nPosW.z + nPosW.w / 2.0f)   { I += 4; nPosW.z += nPosW.w / 2.0f; }
         nPosW.w /= 2.0f;
 
         uint R = texelFetch(octreeNodePool, iter, 0).x;
@@ -240,14 +240,14 @@ float InterpInCell(vec4 nPosW, float PS, vec3 pos)
 
     if (showVolOrTex)
     {
-        v0 = InterpIntegerSampler(node0);
-        v1 = InterpIntegerSampler(node1);
-        v2 = InterpIntegerSampler(node2);
-        v3 = InterpIntegerSampler(node3);
-        v4 = InterpIntegerSampler(node4);
-        v5 = InterpIntegerSampler(node5);
-        v6 = InterpIntegerSampler(node6);
-        v7 = InterpIntegerSampler(node7);
+        v0 = vMin + InterpIntegerSampler(node0) * dv;
+        v1 = vMin + InterpIntegerSampler(node1) * dv;
+        v2 = vMin + InterpIntegerSampler(node2) * dv;
+        v3 = vMin + InterpIntegerSampler(node3) * dv;
+        v4 = vMin + InterpIntegerSampler(node4) * dv;
+        v5 = vMin + InterpIntegerSampler(node5) * dv;
+        v6 = vMin + InterpIntegerSampler(node6) * dv;
+        v7 = vMin + InterpIntegerSampler(node7) * dv;
     }
     else
     {
@@ -306,8 +306,8 @@ vec4 GetColor(vec3 pos)
         if (clipVolume) showGridCond = subxMost || subyMost || (subxMost && subzMost) || (subyMost && subzMost);
         //if (clipVolume) showGridCond = subyMost || subzMost || (subxMost && subyMost) || (subxMost && subzMost);
         else            showGridCond = (subxMost && subyMost) || (subxMost && subzMost) || (subyMost && subzMost);
-        // if (showGridCond && pos.y > 0.5)   return GColor;
-        if (showGridCond)   return GColor;
+        if (showGridCond && pos.y > 0.5)   return GColor;
+        // if (showGridCond)   return GColor;
     }
     float v = InterpInCell(nPosW, patchSize, pos);
     vec4 tmpColor = texture(tFunc, (v - vMin) / (vMax - vMin), 0.0f);

@@ -106,5 +106,6 @@
     <None Include="resources\shaders\render\RC\renderTexture_frag.glsl" />
     <None Include="resources\shaders\compute\reconstructTBAMR_EntropyRange_comp.glsl" />
     <None Include="resources\shaders\compute\calculateEntropyPerBrick_comp.glsl" />
+    <None Include="resources\shaders\compute\calculateEntropyGlobalValueRange_comp.glsl" />
   </ItemGroup>
 </Project>

@@ -67,7 +67,7 @@ namespace gmm {
 		initEntropyComponent();
 
 		constructOctree();
-		//reconByAMR();
+		reconByAMR();
 
 		//OutputAMRReconVolume("S://SGMM Recon", true);
 		//OutputAMRReconVolume("S://SGMM Recon", false);
@@ -779,12 +779,18 @@ namespace gmm {
 			tinyvr::vrTextureFormat::TEXTURE_FMT_RED, tinyvr::vrTextureType::TEXTURE_TYPE_FLT32);
 		m_LocalEntropyTex->SetData(m_DataRes.x * m_DataRes.y * m_DataRes.z, nullptr);
 			
+		m_MinMaxValueTex = tinyvr::vrTexture1D::Create(2,
+			tinyvr::vrTextureFormat::TEXTURE_FMT_RED,
+			tinyvr::vrTextureType::TEXTURE_TYPE_U32I);
+		m_MinMaxValueTex->SetData(2);
+
 		{	// calculate entropy using local histogram
 			m_EntropyLocalHistCompShader = tinyvr::vrShader::CreateComp("resources/shaders/compute/calculateEntropyPerBrick_comp.glsl");
 			m_EntropyLocalHistCompShader->Bind();
 
 			m_LocalEntropyTex->BindImage(0, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_WRITEONLY);
-			m_FullReconVolumeTex->BindUnit(1);
+			m_MinMaxValueTex->BindImage(1, tinyvr::vrTexImageAccess::TEXTURE_IMAGE_ACCESS_READWRITE);
+			m_FullReconVolumeTex->BindUnit(2);
 
 			m_EntropyLocalHistCompShader->SetFloat("vMin", m_ValueRange.x);
 			m_EntropyLocalHistCompShader->SetFloat("vMax", m_ValueRange.y);
@@ -807,6 +813,9 @@ namespace gmm {
 						std::dynamic_pointer_cast<tinyvr::vrOpenGLCompShader>(m_EntropyLocalHistCompShader)->Compute(R);
 					}
 		}
+		glm::uvec2 minmaxVals = { 0, 0 };
+		m_MinMaxValueTex->GetData(glm::value_ptr(minmaxVals));
+		m_EntropyRange = glm::dvec2(minmaxVals) / glm::dvec2(1.0e8);
 
 		//{
 		//	m_EntropyLocalHistCompShader = tinyvr::vrShader::CreateComp("resources/shaders/compute/calculateLocalHistEntropy_comp.glsl");
@@ -830,8 +839,6 @@ namespace gmm {
 		m_EntopyHistogram.resize(m_NumIntervals, 0);
 		m_EntropyHistRange = m_EntropyRange;
 
-		//m_EntropyRange = m_LocalEntropyTex->GlobalMinMaxVal();
-		m_EntropyRange = { 0, 4.8 };
 		TINYVR_CORE_INFO("Entropy range : [{0:>8.4}, {1:>8.4}]", m_EntropyRange.x, m_EntropyRange.y);
 	}
 	

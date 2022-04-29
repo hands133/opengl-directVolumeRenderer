@@ -7,6 +7,9 @@ class GMM_APP : public tinyvr::vrApplication
 public:
 	GMM_APP()
 	{
+		glm::uvec3 res = { 1, 1, 1 };
+		glm::vec2 valueRange = { 0, 256 };
+		uint32_t numIntervals = 256;
 		glm::uvec3 brickRes = { 4, 3, 2 };
 		uint32_t blockSize = 8;
 
@@ -126,22 +129,32 @@ public:
 		//valueRange = glm::vec2(9.393370624568124e-20, 0.44742774963378906);
 		//SGMMDataVarName = "lap3dF32_1024_b8";
 		//valueRange = glm::vec2(9.393370624568124e-20, 0.44742774963378906);
-		//SGMMDataVarName = "lap3dF32";
-		//blockSize = 6;
-		//SGMMDataVarName = "lap3dF32_b6";
 
+		//SGMMDataVarName = "lap3dF32_b6";
 
 		//valueRange = glm::vec2(9.393370624568124e-20, 0.44742774963378906);
 		//SGMMDataVarName = "lap3dF32_1024_b8";
 
-		brickRes = { 4, 4, 7 };
-		glm::uvec3 res = { 350, 350, 700 };
-		glm::vec2 valueRange = glm::vec2(0.0, 256.0);
-		uint32_t numIntervals = 256;
+		{
+			//brickRes = { 3, 4, 2 };
+			//res = { 256, 256, 512 };
+			//valueRange = glm::vec2(0.0, 256.0);
+			//numIntervals = 256;
 
-		blockSize = 6;
-		valueRange = glm::vec2(0.0, 256.0);
-		SGMMDataVarName = "lap3dF32_700_b6";
+			//SGMMDataVarName = "lap3dF32";
+			//blockSize = 8;
+			//valueRange = glm::vec2(9.393370624568124e-20, 0.44742774963378906);
+		}
+		{
+			brickRes = { 4, 4, 7 };
+			res = { 350, 350, 700 };
+			numIntervals = 256;
+
+			blockSize = 6;
+			valueRange = glm::vec2(7.471811320796687e-19, 0.3604208827018738);
+			SGMMDataVarName = "lap3dF32_700_b6";
+		}
+		rho = 0.9;
 
 		//brickRes = { 4, 4, 8 };
 		//glm::uvec3 res = { 256, 256, 512 };
@@ -156,7 +169,7 @@ public:
 		//rho = 0.65;
 		//rho = 0.8;
 		// Fuck
-		rho = 0.9;
+		//rho = 0.9;
 		//rho = 1.0;
 		
 		// ================ shock ================

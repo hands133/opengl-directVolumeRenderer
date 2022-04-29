@@ -108,6 +108,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\shaders\compute\calculateEntropyPerBrick_comp.glsl" />
+    <None Include="resources\shaders\compute\calculateEntropyGlobalValueRange_comp.glsl" />
     <None Include="resources\shaders\compute\reconstructTBAMR_EntropyRange_comp.glsl" />
     <None Include="resources\shaders\compute\calculateGlobalHist_comp.glsl" />
     <None Include="resources\shaders\compute\calculateLocalHistEntropy_comp.glsl" />

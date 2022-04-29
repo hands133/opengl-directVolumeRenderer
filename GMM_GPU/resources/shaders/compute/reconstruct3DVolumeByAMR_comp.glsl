@@ -6,7 +6,6 @@ layout(binding = 0, r32f)	uniform writeonly image3D tex_ReconResult;
 layout(binding = 1)			uniform sampler3D tex_ReconFullVolume;
 
 layout(binding = 2)			uniform usampler2D tex_OctreeNode;
-layout(binding = 3)			uniform sampler2D tex_OctreePos;
 
 float PI = 3.141592653589793238462643383279;
 
@@ -27,19 +26,18 @@ ivec2 GetChildOffset(uint R)
 vec4 traverseOctree(vec3 pos)
 {
 	ivec2 iter = ivec2(0);
-	vec4 nPosW = vec4(0.0f);
+    vec4 nPosW = vec4(0.0f, 0.0f, 0.0f, 1.0f);
 
 	while (true)
 	{
-		nPosW = texelFetch(tex_OctreePos, iter, 0);
 		uint R = texelFetch(tex_OctreeNode, iter, 0).x;
-
 		if (IsLeafNode(R))	return nPosW;
 
-		int I = 0;
-		if (pos.x > nPosW.x + nPosW.w / 2.0f)  I += 1;
-		if (pos.y > nPosW.y + nPosW.w / 2.0f)  I += 2;
-		if (pos.z > nPosW.z + nPosW.w / 2.0f)  I += 4;
+        int I = 0;
+        if (pos.x > nPosW.x + nPosW.w / 2.0f)   { I += 1; nPosW.x += nPosW.w / 2.0f; }
+        if (pos.y > nPosW.y + nPosW.w / 2.0f)   { I += 2; nPosW.y += nPosW.w / 2.0f; }
+        if (pos.z > nPosW.z + nPosW.w / 2.0f)   { I += 4; nPosW.z += nPosW.w / 2.0f; }
+        nPosW.w /= 2.0f;
 
 		iter = GetChildOffset(R) + ivec2(I, 0);
 	}
