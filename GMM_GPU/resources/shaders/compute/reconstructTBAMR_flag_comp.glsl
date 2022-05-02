@@ -81,14 +81,9 @@ uint SetFlag(uint R)
 
 bool JudgeFlag(vec4 cellInfo, float e)
 {
-	float w = cellInfo.w;
-	float w0 = w / float(PS);
-	float wOffset = w0 / 2.0f;
-
-	float vMin = 100.0f;
-	float vMax = -1.0f;
+	float w0 = cellInfo.w / float(PS);
 	bool shouldDivide = false;
-	
+
 	for (int i = 0; i < PS + 1; ++i)
 		for (int j = 0; j < PS + 1; ++j)
 			for (int k = 0; k < PS + 1; ++k)
@@ -97,6 +92,7 @@ bool JudgeFlag(vec4 cellInfo, float e)
 				float entropy = texture(tex_Entropy, pSamp).x;
 				if (entropy >= e)	shouldDivide = true;
 			}
+
 	return shouldDivide;
 }
 

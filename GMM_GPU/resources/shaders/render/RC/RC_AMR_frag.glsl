@@ -35,7 +35,6 @@ uniform vec4 GColor;    // Grid-line color
 float traverseOctree(vec3 pos);
 vec4 GetColor(vec3 pos);
 
-
 float lerp(float a, float b, float t);
 float lerp3(float v000, float v001, float v010, float v011,
 	float v100, float v101, float v110, float v111, vec3 t);
@@ -74,16 +73,42 @@ void main()
 
     if (clipVolume)
     {
-        float t = (clipCoord_x - cdIn.x) / (cdOut.x - cdIn.x);
-        currentPos.x = clipCoord_x;
-        currentPos.y = cdIn.y + t * (cdOut.y - cdIn.y);
-        currentPos.z = cdIn.z + t * (cdOut.z - cdIn.z);
+        {   // clip X
+            float t = (clipCoord_x - cdIn.x) / (cdOut.x - cdIn.x);
+            currentPos.x = clipCoord_x;
+            currentPos.y = cdIn.y + t * (cdOut.y - cdIn.y);
+            currentPos.z = cdIn.z + t * (cdOut.z - cdIn.z);
         
-        vec4 tmpColor = vec4(0.0f);
-        if (showGrid)   tmpColor = GetColor(currentPos);
-        else            tmpColor = texture(tFunc, (traverseOctree(currentPos) - vMin) / (vMax - vMin));
-        color = tmpColor.xyz;
-        alpha = isInInverval(cdIn.x, cdOut.x, clipCoord_x) ? 1.0f : 0.0f;
+            vec4 tmpColor = vec4(0.0f);
+            if (showGrid)   tmpColor = GetColor(currentPos);
+            else            tmpColor = texture(tFunc, (traverseOctree(currentPos) - vMin) / (vMax - vMin));
+            color = tmpColor.xyz;
+            alpha = isInInverval(cdIn.x, cdOut.x, clipCoord_x) ? 1.0f : 0.0f;
+        }
+        // {   // clip Y
+        //     float t = (clipCoord_x - cdIn.y) / (cdOut.y - cdIn.y);
+        //     currentPos.x = cdIn.x + t * (cdOut.x - cdIn.x);
+        //     currentPos.y = clipCoord_x;
+        //     currentPos.z = cdIn.z + t * (cdOut.z - cdIn.z);
+        // 
+        //     vec4 tmpColor = vec4(0.0f);
+        //     if (showGrid)   tmpColor = GetColor(currentPos);
+        //     else            tmpColor = texture(tFunc, (traverseOctree(currentPos) - vMin) / (vMax - vMin));
+        //     color = tmpColor.xyz;
+        //     alpha = isInInverval(cdIn.y, cdOut.y, clipCoord_x) ? 1.0f : 0.0f;
+        // }
+        // {   // clip Z
+        //     float t = (clipCoord_x - cdIn.z) / (cdOut.z - cdIn.z);
+        //     currentPos.x = cdIn.x + t * (cdOut.x - cdIn.x);
+        //     currentPos.y = cdIn.y + t * (cdOut.y - cdIn.y);
+        //     currentPos.z = clipCoord_x;
+        // 
+        //     vec4 tmpColor = vec4(0.0f);
+        //     if (showGrid)   tmpColor = GetColor(currentPos);
+        //     else            tmpColor = texture(tFunc, (traverseOctree(currentPos) - vMin) / (vMax - vMin));
+        //     color = tmpColor.xyz;
+        //     alpha = isInInverval(cdIn.z, cdOut.z, clipCoord_x) ? 1.0f : 0.0f;
+        // }
     }
     else
     {
@@ -167,8 +192,8 @@ vec4 traverseOctree(vec3 pos, int maxSearchDepth)
 
         iter = GetChildOffset(R) + ivec2(I, 0);
         tmpLVL++;
-        if (tmpLVL > maxSearchDepth) { updateLVL = false; };
-
+        // if (tmpLVL > maxSearchDepth) { updateLVL = false; };
+        if (tmpLVL > maxSearchDepth)    return nPosW;
     }
     return nPosW;
 }
@@ -260,11 +285,8 @@ float InterpInCell(vec4 nPosW, float PS, vec3 pos)
         v6 = texture(entropyTexF32, node6).x;
         v7 = texture(entropyTexF32, node7).x;
     }
-
     vec3 t = (pos - node0) / vec3(subBlockSize);
-    float v = lerp3 (v0, v1, v2, v3, v4, v5, v6, v7, t);
-
-    return v;
+    return lerp3 (v0, v1, v2, v3, v4, v5, v6, v7, t);
 }
 
 float traverseOctree(vec3 pos)
@@ -303,8 +325,8 @@ vec4 GetColor(vec3 pos)
 
         bool showGridCond = false;
 
-        if (clipVolume) showGridCond = subxMost || subyMost || (subxMost && subzMost) || (subyMost && subzMost);
-        //if (clipVolume) showGridCond = subyMost || subzMost || (subxMost && subyMost) || (subxMost && subzMost);
+        // if (clipVolume) showGridCond = subxMost || subyMost || (subxMost && subzMost) || (subyMost && subzMost);
+        if (clipVolume) showGridCond = subyMost || subzMost || (subxMost && subyMost) || (subxMost && subzMost);
         else            showGridCond = (subxMost && subyMost) || (subxMost && subzMost) || (subyMost && subzMost);
         if (showGridCond && pos.y > 0.5)   return GColor;
         // if (showGridCond)   return GColor;
