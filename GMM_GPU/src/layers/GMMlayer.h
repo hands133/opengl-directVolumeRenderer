@@ -89,7 +89,6 @@ namespace gmm {
 		/// ============ member for computing ============
 		//	1. Volume Reconstruction using Spatial GMM data
 		std::vector<tinyvr::vrRef<tinyvr::vrTexture3D>> m_GMMCoeffTexturesList;
-		tinyvr::vrRef<tinyvr::vrTexture3D> m_GMMCoeffBinIndexProjectionTex;
 		tinyvr::vrRef<tinyvr::vrShader> m_ReconCompShader;
 
 		int *m_XGap, *m_YGap, *m_ZGap;

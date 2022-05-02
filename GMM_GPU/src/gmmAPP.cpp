@@ -21,17 +21,17 @@ public:
 
 		// SGMM By myself
 		// ================ Isabel ================
-		brickRes = { 4, 3, 2 };
-		res = { 500, 500, 100 };
-		numIntervals = 256;
+		//brickRes = { 4, 3, 2 };
+		//glm::uvec3 res = { 500, 500, 100 };
+		//glm::vec2 valueRange(0.0f);
+		//uint32_t numIntervals = 256;
 
 		{	// CLOUDf07
 			//SGMMDataVarName = "CLOUDf07";
 			//valueRange = glm::vec2(-0.001, 0.0025382);
 			//rho = 0.7;
 			//rho = 0.9;
-			 //rho = 0.96;
-			 //rho = 0.999;
+			//rho = 0.999;
 			//e0 = 0;
 		}
 		{	// Pf07
@@ -53,30 +53,25 @@ public:
 		{	// TCf07
 			//SGMMDataVarName = "TCf07";
 			//valueRange = glm::vec2(-81.03565979, 35.01);
+			//rho = 1.0;
 			//rho = 0.62;
-			//rho = 0.68;
-			//rho = 0.74;
+			//rho = 0.69;
 			//e0 = 0;
 		}
 		{	// alter
 			//SGMMDataVarName = "alter";
 			//valueRange = glm::vec2(0, 256);
 			//rho = 0.60;
-			//rho = 0.67;
+			//rho = 0.65;
 			//rho = 0.72;
-			//rho = 0.95;
 			//e0 = 1.3;
-
-			//rho = 0.11;
-			//rho = 0.135;
-			//rho = 0.2;
-			//e0 = 1.2;
 		}
 
 		// ================ Deep Water Impact ================
 		//brickRes = { 4, 3, 2 };
-		//res = { 300, 300, 300 };
-		//numIntervals = 256;
+		//glm::uvec3 res = { 300, 300, 300 };
+		//glm::vec2 valueRange(0.0f);
+		//uint32_t numIntervals = 256;
 
 		{	// snd
 			//SGMMDataVarName = "snd";
@@ -92,7 +87,6 @@ public:
 			//rho = 0.6;
 			//rho = 0.78;
 			//rho = 0.85;
-			//rho = 0.95;
 			//e0 = 0;
 		}
 		{
@@ -100,7 +94,7 @@ public:
 			//valueRange = glm::vec2(0, 1);
 			//rho = 0.6;
 			//rho = 0.78;
-			//rho = 0.95;
+			//rho = 0.94;
 			//e0 = 0;
 		}
 		{	// stone 1
@@ -122,40 +116,34 @@ public:
 		}
 
 		// ================ lap3d ================
-		{
-			//brickRes = { 3, 4, 2 };
-			//res = { 256, 256, 512 };
-			//numIntervals = 256;
+		//brickRes = { 3, 4, 2 };
+		//glm::uvec3 res = { 256, 256, 512 };
+		//glm::vec2 valueRange = glm::vec2(0.0, 256.0);
+		//uint32_t numIntervals = 256;
 
-			//SGMMDataVarName = "lap3d";
-			//blockSize = 8;
-			//valueRange = glm::vec2(0, 255);
-		}
+		//valueRange = glm::vec2(0.0, 256.0);
+		//SGMMDataVarName = "lap3d";
+
+		//glm::uvec3 res = { 512, 512, 1024 };
+		//brickRes = { 4, 4, 8 };
+		//valueRange = glm::vec2(9.393370624568124e-20, 0.44742774963378906);
+		//SGMMDataVarName = "lap3dF32_1024_b8";
+		//valueRange = glm::vec2(9.393370624568124e-20, 0.44742774963378906);
+
+		//SGMMDataVarName = "lap3dF32_b6";
+
+		//valueRange = glm::vec2(9.393370624568124e-20, 0.44742774963378906);
+		//SGMMDataVarName = "lap3dF32_1024_b8";
+
 		{
 			//brickRes = { 3, 4, 2 };
 			//res = { 256, 256, 512 };
+			//valueRange = glm::vec2(0.0, 256.0);
 			//numIntervals = 256;
 
 			//SGMMDataVarName = "lap3dF32";
 			//blockSize = 8;
 			//valueRange = glm::vec2(9.393370624568124e-20, 0.44742774963378906);
-		}
-		{
-			//brickRes = { 3, 4, 2 };
-			//res = { 256, 256, 512 };
-			//numIntervals = 256;
-
-			//SGMMDataVarName = "lap3dF32_b6";
-			//blockSize = 6;
-			//valueRange = glm::vec2(9.393370624568124e-20, 0.44742774963378906);
-
-			//rho = 1.0;
-
-			//rho = 0.65;
-
-			//rho = 0.9;
-			//rho = 0.88;
-			//rho = 0.82;
 		}
 		{
 			brickRes = { 4, 4, 7 };
@@ -165,16 +153,10 @@ public:
 			blockSize = 6;
 			valueRange = glm::vec2(7.471811320796687e-19, 0.3604208827018738);
 			SGMMDataVarName = "lap3dF32_700_b6";
-
-			rho = 1.0;
-
-			//rho = 0.65;
-
-			//rho = 0.82;
-			//rho = 0.88;
-			//rho = 0.9;
-			//rho = 1.0;
 		}
+		//rho = 0.9;
+		rho = 0.88;
+		//rho = 0.82;
 
 		//brickRes = { 4, 4, 8 };
 		//glm::uvec3 res = { 256, 256, 512 };
@@ -194,9 +176,9 @@ public:
 		
 		// ================ shock ================
 		//brickRes = { 2, 3, 4 };
-		//res = { 400, 400, 400 };
-		//valueRange = glm::vec2(0.0, 256.0);
-		//numIntervals = 256;
+		//glm::uvec3 res = { 400, 400, 400 };
+		//glm::vec2 valueRange = glm::vec2(0.0, 256.0);
+		//uint32_t numIntervals = 256;
 
 		//SGMMDataVarName = "shock";
 		//rho = 0.6;
