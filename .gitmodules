@@ -7,12 +7,12 @@
 [submodule "include/vendor/spdlog"]
 	path = include/vendor/spdlog
 	url = https://hub.fastgit.org/gabime/spdlog.git
-[submodule ".\\tinyVR\\vendor\\imgui"]
-	path = .\\tinyVR\\vendor\\imgui
+[submodule "tinyVR/vendor/imgui"]
+	path = tinyVR/vendor/imgui
 	url = https://hub.fastgit.org/TheCherno/imgui
-[submodule ".\\tinyVR\\vendor\\assimp"]
-	path = .\\tinyVR\\vendor\\assimp
+[submodule "tinyVR/vendor/assimp"]
+	path = tinyVR/vendor/assimp
 	url = https://hub.fastgit.org/assimp/assimp.git
-[submodule ".\\tinyVR\\vendor\\json"]
-	path = .\\tinyVR\\vendor\\json
+[submodule "tinyVR/vendor/json"]
+	path = tinyVR/vendor/json
 	url = https://github.com/nlohmann/json.git
