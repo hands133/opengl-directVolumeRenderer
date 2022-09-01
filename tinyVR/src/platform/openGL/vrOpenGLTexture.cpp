@@ -115,8 +115,7 @@ namespace tinyvr {
         m_Width = width;
         m_Height = height;
 
-        if (m_TextureID)
-        {
+        if (m_TextureID) {
             s_GLImpl.DestroyTexture(m_TextureID);
             m_TextureID = 0;
         }

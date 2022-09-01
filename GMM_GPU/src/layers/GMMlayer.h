@@ -20,7 +20,7 @@ namespace gmm {
 	public:
 		vrGMMLayer(
 			const std::string& gmmDataDir, glm::uvec3 brickRes,
-			uint32_t blockSize, glm::uvec3 dataRes,
+			uint32_t blockSize, glm::uvec3 dataRes, glm::vec3 sliceThick,
 			glm::vec2 valueRange, uint32_t numIntervals,
 			// Parameters for octree
 			float rho, float e0,
@@ -63,6 +63,7 @@ namespace gmm {
 		uint32_t m_BlockSize;
 
 		glm::uvec3 m_DataRes;
+		glm::vec3 m_SliceThick;
 
 		glm::vec2 m_ValueRange;
 		glm::vec2 m_EntropyRange;
@@ -71,6 +72,7 @@ namespace gmm {
 		tinyvr::vrRef<gmm::GMMFile> m_GMMFile;
 
 		std::vector<float> m_OriginDataBuffer;
+		std::vector<uint8_t> m_OriginDataBufferU8I;
 
 		/// ============ member for controlling ============
 		int32_t m_UserDefinedMaxTreeDepth;

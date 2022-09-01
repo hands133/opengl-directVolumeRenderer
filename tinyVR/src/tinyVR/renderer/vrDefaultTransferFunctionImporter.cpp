@@ -59,7 +59,7 @@ namespace tinyvr
 				std::transform(buffer.begin(), buffer.end(), ColorNodes.begin(), [&](const glm::vec4& v)
 					{
 						float range = XRange.y - XRange.x;
-						uint32_t isoVal = (v.a - XRange.x) / range * 255.999;
+						uint32_t isoVal = (v.a - XRange.x) / range * 511.999;
 						return tfCNode{ isoVal, { v.r, v.g, v.b } }; 
 					});
 
@@ -69,8 +69,7 @@ namespace tinyvr
 				name = e.at("Name").get<std::string>();
 				m_DefaultTFNameList.emplace_back(name);
 			}
-			catch (const std::exception&)
-			{	continue;	}
+			catch (const std::exception&) {	continue; }
 		}
 		TINYVR_INFO("Read Default Parameters Finished, total {0:>4} sets", m_DefaultTFNameList.size());
 	}

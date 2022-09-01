@@ -8,6 +8,7 @@ public:
 	GMM_APP()
 	{
 		glm::uvec3 res = { 1, 1, 1 };
+		glm::vec3 slice = { 1, 1, 1 };
 		glm::vec2 valueRange = { 0, 256 };
 		uint32_t numIntervals = 256;
 		glm::uvec3 brickRes = { 4, 3, 2 };
@@ -70,13 +71,17 @@ public:
 			//rho = 0.11;
 			//rho = 0.135;
 			//rho = 0.2;
-			//e0 = 1.2;
+			//rho = 1.0;
+
+			//e0 = 0;
+			//e0 = 1;
+			//e0 = -0.5;
 		}
 
 		// ================ Deep Water Impact ================
-		//brickRes = { 4, 3, 2 };
-		//res = { 300, 300, 300 };
-		//numIntervals = 256;
+		brickRes = { 4, 3, 2 };
+		res = { 300, 300, 300 };
+		numIntervals = 256;
 
 		{	// snd
 			//SGMMDataVarName = "snd";
@@ -112,13 +117,17 @@ public:
 			//e0 = 0;
 		}
 		{	// stone 2
-			//SGMMDataVarName = "stone2";
-			//valueRange = glm::vec2(0, 256);
+			SGMMDataVarName = "stone2";
+			valueRange = glm::vec2(0, 256);
+			//rho = 1.0;
 			//rho = 0.6;
 			//rho = 0.72;
-			//rho = 0.85;
+			//rho = 0.78;
+			rho = 0.85;
 
-			//e0 = 0;
+			e0 = 0;
+			//e0 = 1;
+			//e0 = -0.5;
 		}
 
 		// ================ lap3d ================
@@ -158,22 +167,28 @@ public:
 			//rho = 0.82;
 		}
 		{
-			brickRes = { 4, 4, 7 };
-			res = { 350, 350, 700 };
-			numIntervals = 256;
+			//brickRes = { 4, 4, 7 };
+			//res = { 350, 350, 700 };
+			//numIntervals = 256;
 
-			blockSize = 6;
-			valueRange = glm::vec2(7.471811320796687e-19, 0.3604208827018738);
-			SGMMDataVarName = "lap3dF32_700_b6";
+			//blockSize = 6;
+			//valueRange = glm::vec2(7.471811320796687e-19, 0.3604208827018738);
+			//SGMMDataVarName = "lap3dF32_700_b6";
 
-			rho = 1.0;
+			//rho = 1.0;
 
+			//rho = 0.6;
 			//rho = 0.65;
+			//rho = 0.72;
 
 			//rho = 0.82;
 			//rho = 0.88;
 			//rho = 0.9;
 			//rho = 1.0;
+
+			//e0 = 0;
+			//e0 = -0.5;
+			//e0 = 1;
 		}
 
 		//brickRes = { 4, 4, 8 };
@@ -196,30 +211,45 @@ public:
 		//brickRes = { 2, 3, 4 };
 		//res = { 400, 400, 400 };
 		//valueRange = glm::vec2(0.0, 256.0);
-		//numIntervals = 256;
+		//slice = { 1, 0.5, 1 };
 
 		//SGMMDataVarName = "shock";
+		//rho = 0.46;
+		//rho = 0.53;
 		//rho = 0.6;
-		//rho = 0.75;
-		//rho = 0.85;
+		//rho = 1.0;
+		
+		//e0 = 1.0;
+		//e0 = 0.0;
+		//e0 = -0.5;
 
 		// ================ plane ================
 		//brickRes = { 4, 3, 2 };
-		//glm::uvec3 res = { 512, 512, 512 };
-		//glm::vec2 valueRange = glm::vec2(0.0, 256.0);
-		//uint32_t numIntervals = 256;
-		//
+		//res = { 512, 512, 512 };
+		//slice = { 0.0449219, 0.025, 0.0115234 };
+		//valueRange = glm::vec2(0.0, 256.0);
+
 		//SGMMDataVarName = "plane";
+		//rho = 0.46;
+		//rho = 0.5;
 		//rho = 0.6;
-		//rho = 0.75;
-		//rho = 0.85;
+		//rho = 0.73;
+
+		//rho = 0.5;
+		//rho = 0.56;
+		//rho = 0.6;
+		//rho = 1.0;
+		//e0 = -2;
+		//e0 = -1;
+		//e0 = 0;
 
 		SGMMDataSetBaseDir = SGMMDataSetBaseDir / SGMMDataVarName;
 		SGMMDataSetPicDir = SGMMDataSetPicDir / SGMMDataVarName;
 		
 		PushLayer(new gmm::vrGMMLayer(
 			SGMMDataSetBaseDir.string(), 
-			brickRes, blockSize, res, valueRange, numIntervals,
+			brickRes, blockSize, res, slice, 
+			valueRange, numIntervals,
 			rho, e0, SGMMDataSetPicDir));
 	}
 

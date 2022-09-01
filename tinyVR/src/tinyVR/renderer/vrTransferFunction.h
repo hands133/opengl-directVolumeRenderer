@@ -21,7 +21,7 @@ namespace tinyvr
 		vrTransferFunction(vrRef<vrTexture1D>& tfTex, uint32_t nIsoVals);
 		~vrTransferFunction() {}
 
-		static vrRef<vrTransferFunction> Create(vrRef<vrTexture1D>& tfTex, uint32_t nIsoVals = 256)
+		static vrRef<vrTransferFunction> Create(vrRef<vrTexture1D>& tfTex, uint32_t nIsoVals)
 		{
 			return std::make_shared<vrTransferFunction>(tfTex, nIsoVals);
 		}
@@ -32,6 +32,7 @@ namespace tinyvr
 		
 		void SetIsoValueRange(const glm::uvec2& range);
 		glm::uvec2 GetIsoValueRange() const { return m_IsoValRange; }
+		uint32_t GetIsoIntervals() const { return static_cast<uint32_t>(m_IsoValRange.y - m_IsoValRange.x + 1); }
 
 		const std::vector<tfCNode>& GetColorNodes() const { return m_ColorNodes; }
 		const std::vector<tfANode>& GetAlphaNodes() const { return m_AlphaNodes; }

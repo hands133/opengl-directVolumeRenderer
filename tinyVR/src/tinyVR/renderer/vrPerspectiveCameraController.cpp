@@ -8,14 +8,15 @@ namespace tinyvr {
 
 	vrPerspectiveCameraController::vrPerspectiveCameraController(glm::vec3 pos, int width, int height)
 		: m_AspectRatio(static_cast<float>(width) / static_cast<float>(height)),
-		m_ZoomLevel(45.0f), m_CameraPosition(pos), m_Camera(pos, width, height, m_ZoomLevel)
+		//m_ZoomLevel(45.0f),
+		m_ZoomLevel(10.0f),
+		m_CameraPosition(pos), m_Camera(pos, width, height, m_ZoomLevel)
 	{
 	}
 
 	void vrPerspectiveCameraController::OnUpdate(vrTimestep ts)
 	{
 		// Control camera by keyboards and inputs
-
 	}
 
 	void vrPerspectiveCameraController::OnEvent(vrEvent& e)
@@ -43,7 +44,8 @@ namespace tinyvr {
 
 	bool vrPerspectiveCameraController::OnMouseScrolled(vrMouseScrolledEvent& e)
 	{
-		m_ZoomLevel -= e.GetYOffset();
+		//m_ZoomLevel -= e.GetYOffset() * 0.2;
+		m_ZoomLevel -= e.GetYOffset() * 0.1;
 
 		m_ZoomLevel = std::max(1.0f, m_ZoomLevel);
 		m_ZoomLevel = std::min(60.0f, m_ZoomLevel);

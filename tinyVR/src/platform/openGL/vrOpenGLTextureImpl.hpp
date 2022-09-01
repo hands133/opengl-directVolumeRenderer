@@ -91,8 +91,8 @@ namespace tinyvr {
         {
             void SetTextureData(
                 GLuint dimParam, GLuint lvl, glm::uvec3 res, GLuint borderParam,
-                vrOpenGLTextureImpl::GL_PAIRU3 layoutParam, const void* data)
-            {   glTexImage3D(dimParam, lvl, layoutParam.LAYOUT, res.x, res.y, res.z, borderParam, layoutParam.FMT, layoutParam.TYPE, data);  }
+                vrOpenGLTextureImpl::GL_PAIRU3 layoutParam, const void* data) {
+                glTexImage3D(dimParam, lvl, layoutParam.LAYOUT, res.x, res.y, res.z, borderParam, layoutParam.FMT, layoutParam.TYPE, data);  }
 
             void SetBorderParam(GLuint dimParam, GLuint borderParam)
             {

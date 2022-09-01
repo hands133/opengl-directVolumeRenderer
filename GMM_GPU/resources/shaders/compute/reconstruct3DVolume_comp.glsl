@@ -127,7 +127,5 @@ void main()
 				idx = i;
 			}
 		imageStore(tex_Volume, samplePoint, uvec4(idx));
-		// float m = vMin + float(idx) * dv;
-		// imageStore(tex_Volume, samplePoint, vec4(m));
 	}
 }
