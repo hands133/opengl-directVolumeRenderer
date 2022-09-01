@@ -7,13 +7,16 @@
 /IOT/IOT.vcxproj.filters
 /IOT/IOT.vcxproj
 /IOT/imgui.ini
+/App/App.vcxproj
+/App/App.vcxproj.filters
+/App/App.vcxproj.user
+/App/imgui.ini
 /tinyVR/vendor
 /tinyVR/tinyVR.vcxproj.user
 /tinyVR/tinyVR.vcxproj.filters
 /tinyVR/tinyVR.vcxproj
 /tinyVR.sln
 /.vs/tinyVR/FileContentIndex
-=======
 include/*.zip
 
 .vscode
