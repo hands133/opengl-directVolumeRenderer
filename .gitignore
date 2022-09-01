@@ -2,10 +2,10 @@
 /.vscode
 /bin
 /bin-int
-/GMM_GPU/resources/data
 /IOT/IOT.vcxproj.user
 /IOT/IOT.vcxproj.filters
 /IOT/IOT.vcxproj
+/IOT/resources/models/ply
 /IOT/imgui.ini
 /App/App.vcxproj
 /App/App.vcxproj.filters
