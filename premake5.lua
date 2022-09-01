@@ -208,53 +208,53 @@ project "IOT"
 
         
 -- project app, refer to tinyVR
-project "GMM_GPU"
-    location "GMM_GPU"
-    kind "ConsoleApp"
-    language "C++"
-    cppdialect "C++17"
-    staticruntime "on"
+-- project "GMM_GPU"
+--     location "GMM_GPU"
+--     kind "ConsoleApp"
+--     language "C++"
+--     cppdialect "C++17"
+--     staticruntime "on"
 
-    targetdir ("bin/" .. outputdir .. "/%{prj.name}")
-    objdir ("bin-int/" .. outputdir .. "/%{prj.name}")
+--     targetdir ("bin/" .. outputdir .. "/%{prj.name}")
+--     objdir ("bin-int/" .. outputdir .. "/%{prj.name}")
 
-    files
-    {
-        "%{prj.name}/src/**.h",
-        "%{prj.name}/src/**.cpp",
-        "%{prj.name}/resources/shaders/**.glsl"
-    }
+--     files
+--     {
+--         "%{prj.name}/src/**.h",
+--         "%{prj.name}/src/**.cpp",
+--         "%{prj.name}/resources/shaders/**.glsl"
+--     }
 
-    includedirs
-    {
-        "tinyVR/vendor/spdlog/include",
-        "tinyVR/src",
-        "tinyVR/vendor",
-        "%{IncludeDir.glm}"
-    }
+--     includedirs
+--     {
+--         "tinyVR/vendor/spdlog/include",
+--         "tinyVR/src",
+--         "tinyVR/vendor",
+--         "%{IncludeDir.glm}"
+--     }
 
-    links
-    {
-        "tinyVR"
-    }
+--     links
+--     {
+--         "tinyVR"
+--     }
 
-    filter "system:windows"
-        systemversion "latest"
+--     filter "system:windows"
+--         systemversion "latest"
 
-        defines
-        {
-            "TINYVR_PLATFORM_WINDOWS"
-        }
+--         defines
+--         {
+--             "TINYVR_PLATFORM_WINDOWS"
+--         }
 
-    filter "configurations:Debug"
-        defines "TINYVR_DEBUG"
-        runtime "Debug"
-        symbols "on"
-        ignoredefaultlibraries { "libcmtd.lib" }
+--     filter "configurations:Debug"
+--         defines "TINYVR_DEBUG"
+--         runtime "Debug"
+--         symbols "on"
+--         ignoredefaultlibraries { "libcmtd.lib" }
         
-    filter "configurations:Release"
-        defines "TINYVR_RELEASE"
-        runtime "Release"
-        optimize "on"
+--     filter "configurations:Release"
+--         defines "TINYVR_RELEASE"
+--         runtime "Release"
+        -- optimize "on"
         -- ignoredefaultlibraries { "libcmtd.lib" }
 
