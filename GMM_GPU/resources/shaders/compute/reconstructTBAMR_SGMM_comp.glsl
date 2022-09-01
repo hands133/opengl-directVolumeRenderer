@@ -1,15 +1,13 @@
 #version 460 core
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
-layout(binding = 0, r32f)   uniform writeonly image3D tex_ReconResult;
-
+layout(binding = 0, r8ui)   uniform writeonly uimage3D tex_ReconResult;
 layout(binding = 1)         uniform usampler2D tex_OctreeNode;
-layout(binding = 2)         uniform sampler2D tex_OctreePos;
 
-layout(binding = 3)			uniform sampler3D tex_GMMCoeff_1;
-layout(binding = 4)			uniform sampler3D tex_GMMCoeff_2;
-layout(binding = 5)			uniform sampler3D tex_GMMCoeff_3;
-layout(binding = 6)			uniform sampler3D tex_GMMCoeff_4;
+layout(binding = 2)			uniform sampler3D tex_GMMCoeff_1;
+layout(binding = 3)			uniform sampler3D tex_GMMCoeff_2;
+layout(binding = 4)			uniform sampler3D tex_GMMCoeff_3;
+layout(binding = 5)			uniform sampler3D tex_GMMCoeff_4;
 
 float PI = 3.141592653589793238462643383279;
 
@@ -78,59 +76,14 @@ void main()
     ivec3 patchCellPoint = ivec3((sc - leafInfo.xyz) / vec3(patchW));
 	vec3 o = leafInfo.xyz + patchW * vec3(patchCellPoint);
 
-    vec3 c000 = o + vec3(0, 0, 0) * vec3(patchW);
-    vec3 c001 = o + vec3(1, 0, 0) * vec3(patchW);
-    vec3 c010 = o + vec3(0, 1, 0) * vec3(patchW);
-    vec3 c011 = o + vec3(1, 1, 0) * vec3(patchW);
-    vec3 c100 = o + vec3(0, 0, 1) * vec3(patchW);
-    vec3 c101 = o + vec3(1, 0, 1) * vec3(patchW);
-    vec3 c110 = o + vec3(0, 1, 1) * vec3(patchW);
-    vec3 c111 = o + vec3(1, 1, 1) * vec3(patchW);
-
-    vec3 t = (sc - o) / vec3(patchW);
-
-    // 3. calculate vijk one-by-one
-    // probBuffer[binIdx] = calProbAtEachBin(c000, binIdx);
-    // barrier();
-    // float v000 = float(calBinIdxWithMaxProb());
-
-    // probBuffer[binIdx] = calProbAtEachBin(c001, binIdx);
-    // barrier();
-    // float v001 = float(calBinIdxWithMaxProb());
-
-    // probBuffer[binIdx] = calProbAtEachBin(c010, binIdx);
-    // barrier();
-    // float v010 = float(calBinIdxWithMaxProb());
-
-    // probBuffer[binIdx] = calProbAtEachBin(c011, binIdx);
-    // barrier();
-    // float v011 = float(calBinIdxWithMaxProb());
-
-    // probBuffer[binIdx] = calProbAtEachBin(c100, binIdx);
-    // barrier();
-    // float v100 = float(calBinIdxWithMaxProb());
-
-    // probBuffer[binIdx] = calProbAtEachBin(c101, binIdx);
-    // barrier();
-    // float v101 = float(calBinIdxWithMaxProb());
-
-    // probBuffer[binIdx] = calProbAtEachBin(c110, binIdx);
-    // barrier();
-    // float v110 = float(calBinIdxWithMaxProb());
-    
-    // probBuffer[binIdx] = calProbAtEachBin(c111, binIdx);
-    // barrier();
-    // float v111 = float(calBinIdxWithMaxProb());
-
-    // float m = lerp3(v000, v001, v010, v011, v100, v101, v110, v111, t);
-
+	// 3. calculate value at center
     probBuffer[binIdx] = calProbAtEachBin(o + vec3(0.5f) * vec3(patchW), binIdx);
     barrier();
-    
+
     if (binIdx == 0)
     {
-        float m = float(calBinIdxWithMaxProb());
-        imageStore(tex_ReconResult, samplePoint, vec4(m));
+		int idx = calBinIdxWithMaxProb();
+        imageStore(tex_ReconResult, samplePoint, uvec4(idx));
     }
 }
 
@@ -186,19 +139,18 @@ ivec2 GetChildOffset(uint R)
 vec4 traverseOctree(vec3 pos)
 {
 	ivec2 iter = ivec2(0);
-	vec4 nPosW = vec4(0.0f);
+    vec4 nPosW = vec4(0.0f, 0.0f, 0.0f, 1.0f);
 
 	while (true)
 	{
-		nPosW = texelFetch(tex_OctreePos, iter, 0);
 		uint R = texelFetch(tex_OctreeNode, iter, 0).x;
-
 		if (IsLeafNode(R))	return nPosW;
 
-		int I = 0;
-		if (pos.x > nPosW.x + nPosW.w / 2.0f)  I += 1;
-		if (pos.y > nPosW.y + nPosW.w / 2.0f)  I += 2;
-		if (pos.z > nPosW.z + nPosW.w / 2.0f)  I += 4;
+        int I = 0;
+        if (pos.x > nPosW.x + nPosW.w / 2.0f)   { I += 1; nPosW.x += nPosW.w / 2.0f; }
+        if (pos.y > nPosW.y + nPosW.w / 2.0f)   { I += 2; nPosW.y += nPosW.w / 2.0f; };
+        if (pos.z > nPosW.z + nPosW.w / 2.0f)   { I += 4; nPosW.z += nPosW.w / 2.0f; };
+        nPosW.w /= 2.0f;
 
 		iter = GetChildOffset(R) + ivec2(I, 0);
 	}

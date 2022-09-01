@@ -18,6 +18,8 @@
 #include <random>
 #include <chrono>
 
+#include <atomic>
+
 #include "tinyVR/core/vrLog.h"
 
 #ifdef TINYVR_PLATFORM_WINDOWS

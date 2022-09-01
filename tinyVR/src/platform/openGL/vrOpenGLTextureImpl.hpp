@@ -91,8 +91,8 @@ namespace tinyvr {
         {
             void SetTextureData(
                 GLuint dimParam, GLuint lvl, glm::uvec3 res, GLuint borderParam,
-                vrOpenGLTextureImpl::GL_PAIRU3 layoutParam, const void* data)
-            {   glTexImage3D(dimParam, lvl, layoutParam.LAYOUT, res.x, res.y, res.z, borderParam, layoutParam.FMT, layoutParam.TYPE, data);  }
+                vrOpenGLTextureImpl::GL_PAIRU3 layoutParam, const void* data) {
+                glTexImage3D(dimParam, lvl, layoutParam.LAYOUT, res.x, res.y, res.z, borderParam, layoutParam.FMT, layoutParam.TYPE, data);  }
 
             void SetBorderParam(GLuint dimParam, GLuint borderParam)
             {
@@ -129,7 +129,6 @@ namespace tinyvr {
     inline glm::vec2 vrOpenGLTextureImpl<dim>::GlobalMinMax(GLuint texID, vrTextureFormat format, vrTextureType type, GLuint lvl, uint32_t items)
     {
         glm::vec2 minmax(0.0f, 0.0f);
-
         int formatScales = 1;
         int typeBytes = 1;
 
@@ -202,7 +201,6 @@ namespace tinyvr {
         memset(buffer, 0, N);
 
         FetchTexture(texID, format, type, lvl, buffer);
-
         hist = getHistogram(type, format, buffer, items, NumIntervals);
 
         delete[] buffer;

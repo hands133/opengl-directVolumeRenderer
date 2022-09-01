@@ -20,8 +20,12 @@ namespace gmm {
 	public:
 		vrGMMLayer(
 			const std::string& gmmDataDir, glm::uvec3 brickRes,
-			uint32_t blockSize, glm::uvec3 dataRes,
-			glm::vec2 valueRange, uint32_t numIntervals);
+			uint32_t blockSize, glm::uvec3 dataRes, glm::vec3 sliceThick,
+			glm::vec2 valueRange, uint32_t numIntervals,
+			// Parameters for octree
+			float rho, float e0,
+			// Parameters for pic output
+			const std::filesystem::path picBaseDir);
 
 		~vrGMMLayer();
 
@@ -36,12 +40,10 @@ namespace gmm {
 		void initGMMFile();
 
 		void initRCComponent();
-		void initVolumeTex();
 
+		void initVolumeTex();
 		void reconVol();
 		void calculateHistogram();
-
-		void storeVolumeDataAsFile();
 
 		// 2. Entropy Calculation functions
 		void initEntropyComponent();
@@ -50,15 +52,18 @@ namespace gmm {
 		void reconByAMR();
 		// 4. Reconstruct Similarity / RMSE measure
 		void measureRMSE();
-		void measureSSIM();
+		void measureNMSE();
+
+		void OutputAMRReconVolume(const std::filesystem::path& dataDir, bool isFullReconVolume);
 
 	private:
 		/// ============ member for data ============
-		std::string m_GMMBaseDir;
+		std::filesystem::path m_GMMBaseDir;
 		glm::uvec3 m_BrickRes;
 		uint32_t m_BlockSize;
 
 		glm::uvec3 m_DataRes;
+		glm::vec3 m_SliceThick;
 
 		glm::vec2 m_ValueRange;
 		glm::vec2 m_EntropyRange;
@@ -66,8 +71,8 @@ namespace gmm {
 
 		tinyvr::vrRef<gmm::GMMFile> m_GMMFile;
 
-		tinyvr::vrRef<tinyvr::vrTexture3D> m_OriginVolumeTex;
 		std::vector<float> m_OriginDataBuffer;
+		std::vector<uint8_t> m_OriginDataBufferU8I;
 
 		/// ============ member for controlling ============
 		int32_t m_UserDefinedMaxTreeDepth;
@@ -86,6 +91,7 @@ namespace gmm {
 		/// ============ member for computing ============
 		//	1. Volume Reconstruction using Spatial GMM data
 		std::vector<tinyvr::vrRef<tinyvr::vrTexture3D>> m_GMMCoeffTexturesList;
+		tinyvr::vrRef<tinyvr::vrTexture3D> m_GMMCoeffBinIndexProjectionTex;
 		tinyvr::vrRef<tinyvr::vrShader> m_ReconCompShader;
 
 		int *m_XGap, *m_YGap, *m_ZGap;
@@ -99,23 +105,19 @@ namespace gmm {
 		uint32_t treeMaxDepth;
 		uint32_t treeTexWidth = 32768;
 		uint32_t treeTexHeight;
-		tinyvr::vrRef<tinyvr::vrTexture2D> m_TreePosTex, m_TreeNodeTex;
+		float m_rho;
+		float m_e0;
+
+		tinyvr::vrRef<tinyvr::vrTexture2D> m_TreeNodeTex;
 		tinyvr::vrRef<tinyvr::vrShader> m_ConOctreeFlagCompShader;
 		tinyvr::vrRef<tinyvr::vrShader> m_ConOctreeRefineCompShader;
 
 		// 4. AMR Reconstruction Result Comparison
-		tinyvr::vrRef<tinyvr::vrShader> m_DownSamplingCompShader;
-		tinyvr::vrRef<tinyvr::vrTexture3D> m_CopyVolumeTex;
-
 		tinyvr::vrRef<tinyvr::vrShader> m_CalAMRNodesCompShader;
 		tinyvr::vrRef<tinyvr::vrShader> m_CalAMRReconCompShader;
-
-		tinyvr::vrRef<tinyvr::vrShader> m_MeasureRMSECompShader;
-		tinyvr::vrRef<tinyvr::vrShader> m_MeasureSSIMMeanCompShader;
-		tinyvr::vrRef<tinyvr::vrShader> m_MeasureSSIMVar2CompShader;
+		tinyvr::vrRef<tinyvr::vrTexture2D> m_AMRMinMaxEntropyRangeTex;
 
 		tinyvr::vrRef<tinyvr::vrTexture3D> m_ReconVolumeByAMRTex;
-		tinyvr::vrRef<tinyvr::vrTexture2D> m_RMSENSSIMTex;
 
 		/// ============ member for rendering ============
 		tinyvr::vrRef<tinyvr::vrTrackBall_CHEN> m_TrackBall;
@@ -128,18 +130,22 @@ namespace gmm {
 		std::vector<float> m_EntopyHistogram;
 		glm::vec2 m_VolumeHistRange, m_EntropyHistRange;
 
-		tinyvr::vrRef<tinyvr::vrTexture3D> m_VolumeTex;
+		tinyvr::vrRef<tinyvr::vrTexture3D> m_FullReconVolumeTex;
 		tinyvr::vrRef<tinyvr::vrTexture1D> m_TFVolumeTex, m_TFEntroyTex;
 		tinyvr::vrRef<tinyvr::vrTransferFunction> m_TFVolume, m_TFEntropy;
 		tinyvr::vrRef<tinyvr::vrTransferFunctionWidget> m_TFVolumeWidget, m_TFEntropyWidget;
+		tinyvr::vrRef<tinyvr::vrTexture1D> m_MinMaxValueTex;
 
-		tinyvr::vrRef<tinyvr::vrShader> m_AMRRCShader;
+		tinyvr::vrRef<tinyvr::vrShader> m_AMRRCShader, m_DisplayShader;
 		tinyvr::vrRef<tinyvr::vrShader> m_ProjShader, m_RCShader;
-		tinyvr::vrRef<tinyvr::vrVertexArray> m_CubeVA;
+		tinyvr::vrRef<tinyvr::vrVertexArray> m_CubeVA, m_DisplayVA;
 
 		tinyvr::vrRef<tinyvr::vrFrameBuffer> m_ProjInFB, m_ProjOutFB;
-		tinyvr::vrRef<tinyvr::vrFrameBuffer> m_RenderFB;
+		tinyvr::vrRef<tinyvr::vrFrameBuffer> m_RenderFB, m_DisplayFB;
 
+		/// ============ member for IO ============
+		std::filesystem::path m_PicBaseDirPath;
+		int m_SaveOpaqueOrNot = 0;
 		/// ============ member for system ============
 		glm::uvec2 m_ScrSize;
 		glm::mat4 m_ModelMat;

@@ -28,7 +28,7 @@ namespace tinyvr
 		m_MousePos(0, 0), m_PanelScreenPos(0, 0), m_ColorBarSpan(0.0f),
 		m_ColorNodePanelHovered(false), m_AlphaNodePanelHovered(false),
 		m_HoveredNClickedColorNodeIdx(-1), m_HoveredNClickedAlphaNodeIdx(-1),
-		m_NodeCreationNodeType(0), m_NodeCreationIsoValue(127),
+		m_NodeCreationNodeType(0), m_NodeCreationIsoValue(m_TF->GetIsoIntervals() / 2),
 		m_NodeCreationAlpha(1.0f), m_NodeCreationColor(1.0f),
 		m_NodeCreationIsoValBarActive(false), m_NodeCreationAlphaBarActive(false)
 	{
@@ -74,14 +74,12 @@ namespace tinyvr
 		ImGui::Text("Parameters");
 		ImGui::SameLine();
 		ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth());
-		if(ImGui::BeginCombo(fmt::format("##{0}_Parameters", m_Name).c_str(), m_TFNameListPointer[m_TFParamListIdx]))
-		{
-			for (size_t i = 0; i < m_TFNameListPointer.size(); ++i)
-			{
+		if(ImGui::BeginCombo(fmt::format("##{0}_Parameters", m_Name).c_str()
+			, m_TFNameListPointer[m_TFParamListIdx])) {
+			for (size_t i = 0; i < m_TFNameListPointer.size(); ++i) {
 				const char* p = m_TFNameListPointer[i];
 				bool isSelected = (m_TFParamListIdx == i);
-				if (ImGui::Selectable(p, isSelected))
-				{
+				if (ImGui::Selectable(p, isSelected)) {
 					m_TFParamListIdx = i;
 					m_TF->UpdateColorParameters(i);
 				}
@@ -118,7 +116,7 @@ namespace tinyvr
 
 		auto leftBottom = ImVec2(x, y);
 
-		float step = 1.0 * m_PanelWidth / 256;
+		float step = 1.0 * m_PanelWidth / m_TF->GetIsoIntervals();
 
 		auto& colorNodes = m_TF->GetColorNodes();
 		auto& alphaNodes = m_TF->GetAlphaNodes();
@@ -131,8 +129,7 @@ namespace tinyvr
 			ImVec2(leftBottom.x + m_PanelWidth, leftBottom.y + m_ColorBarHeight),
 			{ m_MousePos.x, m_MousePos.y });
 
-		if (m_ColorNodePanelHovered)
-		{
+		if (m_ColorNodePanelHovered) {
 			uint32_t hoverColorIdx = m_MousePos.x - leftBottom.x;
 			hoverColorIdx = glm::clamp(hoverColorIdx, m_TF->GetIsoValueRange().x, m_TF->GetIsoValueRange().y);
 			auto C = m_TF->GetColor3(hoverColorIdx);
@@ -147,10 +144,9 @@ namespace tinyvr
 		}
 
 		// draw : color bar
-		std::vector<glm::vec4> colors(256, glm::vec4(0.0f));
-		for (int i = 0; i < 256; ++i)	colors[i] = m_TF->GetColor(i / 255.0f);
-		for (int i = 0; i < 256; ++i)
-		{
+		std::vector<glm::vec4> colors(m_TF->GetIsoIntervals(), glm::vec4(0.0f));
+		for (int i = 0; i < m_TF->GetIsoIntervals(); ++i)	colors[i] = m_TF->GetColor(static_cast<uint32_t>(i));
+		for (int i = 0; i < m_TF->GetIsoIntervals(); ++i) {
 			auto C = colors[i];
 			ImU32 col32 = ImColor(C.x, C.y, C.z, C.w);
 			drawList->AddLine(ImVec2(x, y), ImVec2(x, y + m_ColorBarHeight), col32, 2.0 * step);
@@ -160,8 +156,7 @@ namespace tinyvr
 		// draw : color nodes
 		uint32_t CN = m_TF->GetColorNodes().size();
 		m_ColorNodePoses.clear();
-		for(size_t i = 0; i < CN; ++i)
-		{
+		for(size_t i = 0; i < CN; ++i) {
 			auto& cNode = m_TF->GetColorNodes()[i];
 			auto C = cNode.C;
 			ImU32 col32 = ImColor(C.r, C.g, C.b, 1.0f);
@@ -196,8 +191,7 @@ namespace tinyvr
 			ImVec2(m_PanelScreenPos.x + m_PanelWidth + 4.0f, y - 8 - 120.0f * m_NodeCreationAlpha), alphaSliderC, 1.5f);
 
 		// draw : alpha line
-		for (int i = 0; i < 255; ++i)
-		{
+		for (int i = 0; i < colors.size() - 1; ++i) {
 			auto aBegin = glm::clamp(1.0f - colors[i].a, 0.0f, 1.0f);
 			auto aEnd = glm::clamp(1.0f - colors[i + 1].a, 0.0f, 1.0f);
 			drawList->AddLine(ImVec2(m_PanelScreenPos.x + step * i + 4.0f, y - 124.0f + aBegin * 112),
@@ -207,8 +201,7 @@ namespace tinyvr
 		// draw : alpha nodes
 		uint32_t AN = m_TF->GetAlphaNodes().size();
 		m_AlphaNodePoses.clear();
-		for (size_t i = 0; i < AN; ++i)
-		{
+		for (size_t i = 0; i < AN; ++i) {
 			auto& aNode = m_TF->GetAlphaNodes()[i];
 			float a = 1.0f - aNode.a;
 			ImU32 opacity = ImColor(1.0f - a, 1.0f - a, 1.0f - a, 1.0f - a);
@@ -327,16 +320,12 @@ namespace tinyvr
 	void vrTransferFunctionWidget::drawAlphaNodesListUI()
 	{
 		auto range = m_TF->GetIsoValueRange();
-		if (ImGui::TreeNode(fmt::format("Alpha Nodes##{0}", m_Name).c_str()))
-		{
+		if (ImGui::TreeNode(fmt::format("Alpha Nodes##{0}", m_Name).c_str())) {
 			int W = ImGui::GetContentRegionAvailWidth();
-
 			ImGui::BeginGroup();
-			ImGui::BeginChild(ImGui::GetID((void*)0), ImVec2(
-				ImGui::GetContentRegionAvailWidth(), 120), true);
+			ImGui::BeginChild(ImGui::GetID((void*)0), ImVec2(ImGui::GetContentRegionAvailWidth(), 120), true);
 
-			for (size_t i = 0; i < m_TF->GetAlphaNodes().size(); ++i)
-			{
+			for (size_t i = 0; i < m_TF->GetAlphaNodes().size(); ++i) {
 				auto& an = m_TF->GetAlphaNodes()[i];
 				uint32_t isoVal = an.isoVal;
 				auto A = an.a;
@@ -349,16 +338,13 @@ namespace tinyvr
 					m_TF->UpdateAlpha(isoVal, tmpA);
 
 				ImGui::SameLine();
-				if (an.isoVal == range.x || an.isoVal == range.y)
-				{
+				if (an.isoVal == range.x || an.isoVal == range.y) {
 					ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.5f, 0.5f, 0.5f, 0.5f });
 					ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ 0.5f, 0.5f, 0.5f, 0.5f });
 					ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{ 0.5f, 0.5f, 0.5f, 0.5f });
 					ImGui::Button(std::to_string(isoVal).c_str(), ImVec2(ImGui::GetContentRegionAvailWidth(), 0));
 					ImGui::PopStyleColor(3);
-				}
-				else
-				{
+				} else {
 					ImGui::PushItemWidth(-30);
 
 					uint32_t tmpIsoVal = isoVal;
@@ -414,10 +400,9 @@ namespace tinyvr
 
 	void vrTransferFunctionWidget::UpdateColorNodePoses(uint32_t idx, glm::vec2 DeltaMouse)
 	{
-		// DeltaMouse.y doesn't work
 		if (DeltaMouse.x == 0)	return;
 
-		float step = 1.0 * m_PanelWidth / 256;
+		float step = 1.0 * m_PanelWidth / m_TF->GetIsoIntervals();
 		float deltaX = DeltaMouse.x;
 
 		int currentIsoVal = m_TF->GetColorNodes()[m_HoveredNClickedColorNodeIdx].isoVal;
@@ -435,10 +420,9 @@ namespace tinyvr
 
 	void vrTransferFunctionWidget::UpdateAlphaNodePoses(uint32_t idx, glm::vec2 DeltaMouse)
 	{
-		// DeltaMouse.y doesn't work
 		if (DeltaMouse.x == 0)	return;
 
-		float step = 1.0 * m_PanelWidth / 256;
+		float step = 1.0 * m_PanelWidth / m_TF->GetIsoIntervals();
 		float deltaX = DeltaMouse.x;
 		float deltaY = DeltaMouse.y;
 
@@ -463,24 +447,20 @@ namespace tinyvr
 
 	void vrTransferFunctionWidget::UpdateMouseEvent()
 	{
-		if (!ImGui::IsMouseDragging(ImGuiMouseButton_Left))
-		{
+		if (!ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
 			m_HoveredNClickedColorNodeIdx = m_ColorNodePanelHovered ? SearchNearestColorNode(m_ColorNodePoses, m_MousePos) : -1;
 			m_HoveredNClickedAlphaNodeIdx = m_AlphaNodePanelHovered ? SearchNearestAlphaNode(m_AlphaNodePoses, m_MousePos) : -1;
 		}
 
-		if (m_HoveredNClickedColorNodeIdx != -1)
-		{
+		if (m_HoveredNClickedColorNodeIdx != -1) {
 			ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-			if (ImGui::IsMouseDragging(ImGuiMouseButton_Left))
-			{
+			if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
 				glm::vec2 mouseDelta = { ImGui::GetIO().MouseDelta.x, ImGui::GetIO().MouseDelta.y };
 				UpdateColorNodePoses(m_HoveredNClickedColorNodeIdx, mouseDelta);
 			}
 		}
 
-		if (m_HoveredNClickedAlphaNodeIdx != -1)
-		{
+		if (m_HoveredNClickedAlphaNodeIdx != -1) {
 			ImGui::BeginTooltip();
 			ImGui::Text(fmt::format("Alpha={0:>4.2}", m_TF->GetAlphaNodes()[m_HoveredNClickedAlphaNodeIdx].a).c_str());
 			ImGui::EndTooltip();
@@ -489,8 +469,7 @@ namespace tinyvr
 				ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
 			else	ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
 
-			if (ImGui::IsMouseDragging(ImGuiMouseButton_Left))
-			{
+			if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
 				glm::vec2 mouseDelta = { ImGui::GetIO().MouseDelta.x, ImGui::GetIO().MouseDelta.y };
 				UpdateAlphaNodePoses(m_HoveredNClickedAlphaNodeIdx, mouseDelta);
 			}

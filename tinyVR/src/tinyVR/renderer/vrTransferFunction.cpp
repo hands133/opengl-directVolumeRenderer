@@ -3,7 +3,7 @@
 
 namespace tinyvr
 {
-	vrTransferFunction::vrTransferFunction(vrRef<vrTexture1D>& tfTex, uint32_t nIsoVals = 256)
+	vrTransferFunction::vrTransferFunction(vrRef<vrTexture1D>& tfTex, uint32_t nIsoVals)
 		: m_TFTexture(tfTex), m_IsoValRange(0, nIsoVals - 1)
 	{
 		// Prepare

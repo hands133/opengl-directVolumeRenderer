@@ -1,55 +1,40 @@
 #version 460 core
 
+#extension GL_NV_shader_atomic_float : require
+
 layout(local_size_x = 1) in;
 
 layout(binding = 0, r32ui)		uniform coherent uimage2D tex_OctreeNode;
-layout(binding = 1, rgba32f)	uniform coherent image2D tex_OctreePos;
-layout(binding = 2)				uniform sampler3D tex_Entropy;
-
+layout(binding = 1)				uniform sampler3D tex_Entropy;
 
 uniform int currentLevel;
 uniform int texW;
 uniform int PS;		// patch-size
 uniform float eValve;
 
-uint SetFlag(uint R)
+uint SetFlag(uint R);
+bool JudgeFlag(vec4 cellInfo, float e);
+uint SetChildOffset(uint R, ivec2 P);
+
+ivec3 invZOrder(int lvl, int seqIdx)
 {
-	return R | (1 << 30);
+	ivec3 idx = ivec3(0);
+	for (int i = 0; i < lvl; ++i)
+	{
+		idx.x |= ((seqIdx & (1 << (0 + 3 * i))) >> (2 * i + 0));
+		idx.y |= ((seqIdx & (1 << (1 + 3 * i))) >> (2 * i + 1));
+		idx.z |= ((seqIdx & (1 << (2 + 3 * i))) >> (2 * i + 2));
+	}
+	return idx;
 }
 
-bool JudgeFlag(vec4 cellInfo, float e)
+vec4 getNodeInfo(int lvl, int seqIdx)
 {
-	float w = cellInfo.w;
-	float w0 = w / float(PS);
-	float wOffset = w0 / 2.0f;
-
-	// method 1, patch cell center
-	for (int i = 0; i < PS; ++i)
-		for (int j = 0; j < PS; ++j)
-			for (int k = 0; k < PS; ++k)
-			{
-				vec3 pSamp = cellInfo.xyz + vec3(wOffset) + vec3(w0) * vec3(i, j, k);
-				if (texture(tex_Entropy, pSamp).x > e)		return true;
-			}
-
-	// method 2, patch cell vertex
-	//for (int i = 0; i < PS + 1; ++i)
-	//	for (int j = 0; j < PS + 1; ++j)
-	//		for (int k = 0; k < PS + 1; ++k)
-	//		{
-	//			vec3 pSamp = cellInfo.xyz + vec3(w0) * vec3(i, j, k);
-	//			if (texture(tex_Entropy, pSamp).x > e)		return true;
-	//		}
-
-	return false;
+	float cellW = 1.0f / pow(2.0, float(lvl));
+	ivec3 coord = invZOrder(lvl, seqIdx);
+	return vec4(vec3(coord) * vec3(cellW), cellW);
 }
 
-uint SetChildOffset(uint R, ivec2 P)
-{
-	return R | (P.x << 15) | P.y;
-}
-
-// check and mark the grid
 void main()
 {
 	int L = currentLevel;
@@ -60,8 +45,7 @@ void main()
 	if (L <= 5)	pBase.y = L;
 	else {
 		pBase.y = 5;
-		for (int i = 0; i < L - 5; ++i)
-			pBase.y += int(pow(8, i));
+		for (int i = 0; i < L - 5; ++i)	pBase.y += int(pow(8, i));
 	}
 
 	// calculate Pos
@@ -81,11 +65,38 @@ void main()
 	uint nChild = nNode * 8;
 	ivec2 pChildOffset = pNextBase + ivec2(nChild % texW, nChild / texW);
 
-	vec4 cellInfo = imageLoad(tex_OctreePos, pPos);
+	vec4 cellInfo = getNodeInfo(L, seqL);
 	if (JudgeFlag(cellInfo, eValve))
 	{
 		Node = SetFlag(Node);
 		Node = SetChildOffset(Node, pChildOffset);
 		imageStore(tex_OctreeNode, pPos, uvec4(Node));
 	};
+}
+
+uint SetFlag(uint R)
+{
+	return R | (1 << 30);
+}
+
+bool JudgeFlag(vec4 cellInfo, float e)
+{
+	float w0 = cellInfo.w / float(PS);
+	bool shouldDivide = false;
+
+	for (int i = 0; i < PS + 1; ++i)
+		for (int j = 0; j < PS + 1; ++j)
+			for (int k = 0; k < PS + 1; ++k)
+			{
+				vec3 pSamp = cellInfo.xyz + vec3(w0) * vec3(i, j, k);
+				float entropy = texture(tex_Entropy, pSamp).x;
+				if (entropy >= e)	shouldDivide = true;
+			}
+
+	return shouldDivide;
+}
+
+uint SetChildOffset(uint R, ivec2 P)
+{
+	return R | (P.x << 15) | P.y;
 }

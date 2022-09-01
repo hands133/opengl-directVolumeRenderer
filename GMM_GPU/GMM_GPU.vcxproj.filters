@@ -38,6 +38,7 @@
     </ClInclude>
     <ClInclude Include="src\utils\threadPool.h" />
     <ClInclude Include="src\utils\EM_Util.h" />
+    <ClInclude Include="src\files\lodepng.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\files\GMM.cpp">
@@ -52,6 +53,7 @@
     <ClCompile Include="src\layers\GMMlayer.cpp">
       <Filter>src\layers</Filter>
     </ClCompile>
+    <ClCompile Include="src\files\lodepng.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\shaders\compute\calculateGlobalHist_comp.glsl">
@@ -81,18 +83,6 @@
     <None Include="resources\shaders\compute\reconstructTBAMR_refine_comp.glsl">
       <Filter>resources\shaders\compute</Filter>
     </None>
-    <None Include="resources\shaders\compute\statisticalDownSampling_comp.glsl">
-      <Filter>resources\shaders\compute</Filter>
-    </None>
-    <None Include="resources\shaders\compute\statisticalMSE_comp.glsl">
-      <Filter>resources\shaders\compute</Filter>
-    </None>
-    <None Include="resources\shaders\compute\statisticalMSSIM_mean_comp.glsl">
-      <Filter>resources\shaders\compute</Filter>
-    </None>
-    <None Include="resources\shaders\compute\statisticalMSSIM_var2_comp.glsl">
-      <Filter>resources\shaders\compute</Filter>
-    </None>
     <None Include="resources\shaders\render\RC\RC_AMR_frag.glsl">
       <Filter>resources\shaders\render\RC</Filter>
     </None>
@@ -112,5 +102,10 @@
       <Filter>resources\shaders\render\RC</Filter>
     </None>
     <None Include="resources\shaders\compute\reconstructTBAMR_SGMM_comp.glsl" />
+    <None Include="resources\shaders\render\RC\renderTexture_vert.glsl" />
+    <None Include="resources\shaders\render\RC\renderTexture_frag.glsl" />
+    <None Include="resources\shaders\compute\reconstructTBAMR_EntropyRange_comp.glsl" />
+    <None Include="resources\shaders\compute\calculateEntropyPerBrick_comp.glsl" />
+    <None Include="resources\shaders\compute\calculateEntropyGlobalValueRange_comp.glsl" />
   </ItemGroup>
 </Project>

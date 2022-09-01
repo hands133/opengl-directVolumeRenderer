@@ -94,6 +94,7 @@
   <ItemGroup>
     <ClInclude Include="src\files\GMM.h" />
     <ClInclude Include="src\files\GMMFile.h" />
+    <ClInclude Include="src\files\lodepng.h" />
     <ClInclude Include="src\layers\GMMlayer.h" />
     <ClInclude Include="src\utils\EM_Util.h" />
     <ClInclude Include="src\utils\threadPool.h" />
@@ -101,10 +102,14 @@
   <ItemGroup>
     <ClCompile Include="src\files\GMM.cpp" />
     <ClCompile Include="src\files\GMMFile.cpp" />
+    <ClCompile Include="src\files\lodepng.cpp" />
     <ClCompile Include="src\gmmAPP.cpp" />
     <ClCompile Include="src\layers\GMMlayer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="resources\shaders\compute\calculateEntropyPerBrick_comp.glsl" />
+    <None Include="resources\shaders\compute\calculateEntropyGlobalValueRange_comp.glsl" />
+    <None Include="resources\shaders\compute\reconstructTBAMR_EntropyRange_comp.glsl" />
     <None Include="resources\shaders\compute\calculateGlobalHist_comp.glsl" />
     <None Include="resources\shaders\compute\calculateLocalHistEntropy_comp.glsl" />
     <None Include="resources\shaders\compute\calculateOctreeNodes_comp.glsl" />
@@ -115,16 +120,14 @@
     <None Include="resources\shaders\compute\reconstructTBAMR_flag_comp.glsl" />
     <None Include="resources\shaders\compute\reconstructTBAMR_refine_comp.glsl" />
     <None Include="resources\shaders\compute\reconstructTBAMR_SGMM_comp.glsl" />
-    <None Include="resources\shaders\compute\statisticalDownSampling_comp.glsl" />
-    <None Include="resources\shaders\compute\statisticalMSE_comp.glsl" />
-    <None Include="resources\shaders\compute\statisticalMSSIM_mean_comp.glsl" />
-    <None Include="resources\shaders\compute\statisticalMSSIM_var2_comp.glsl" />
     <None Include="resources\shaders\render\RC\RC_AMR_frag.glsl" />
     <None Include="resources\shaders\render\RC\RC_AMR_vert.glsl" />
     <None Include="resources\shaders\render\RC\rayCasting_frag.glsl" />
     <None Include="resources\shaders\render\RC\rayCasting_vert.glsl" />
     <None Include="resources\shaders\render\RC\rayProj_frag.glsl" />
     <None Include="resources\shaders\render\RC\rayProj_vert.glsl" />
+    <None Include="resources\shaders\render\RC\renderTexture_frag.glsl" />
+    <None Include="resources\shaders\render\RC\renderTexture_vert.glsl" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\tinyVR\tinyVR.vcxproj">
