@@ -4,7 +4,6 @@
 [submodule "include/vendor/glm"]
 	path = include/vendor/glm
 	url = https://hub.fastgit.org/g-truc/glm
-<<<<<<< HEAD
 [submodule "include/vendor/spdlog"]
 	path = include/vendor/spdlog
 	url = https://hub.fastgit.org/gabime/spdlog.git
@@ -17,5 +16,3 @@
 [submodule ".\\tinyVR\\vendor\\json"]
 	path = .\\tinyVR\\vendor\\json
 	url = https://github.com/nlohmann/json.git
-=======
->>>>>>> dc9fe76782ec893e2599e16da6008652e0f3a337
