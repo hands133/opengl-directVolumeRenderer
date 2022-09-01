@@ -7,12 +7,7 @@ It's a small tool for direct volume rendering, implemented by C++.
 ---
 ## Build & Compile
 
-```bash
-mkdir build
-cd ./build/
-cmake ..
-make
-```
+Double click the .bat file in `scripts/MSVCRun.bat`.
 
 ## Data Format
 
@@ -72,7 +67,7 @@ Format:         UCHAR
 ## Future work
 
 + Cutting-edge techniques for volume rendering (maybe)
-+ Resources manager (maybe)
++ Resources manager (todo)
 + Mouse controller (done)
 
 ## To Be Continue...
