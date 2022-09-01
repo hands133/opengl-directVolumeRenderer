@@ -1,7 +1,3 @@
-﻿################################################################################
-# 此 .gitignore 文件已由 Microsoft(R) Visual Studio 自动创建。
-################################################################################
-
 /.vs/tinyVR/v17
 /.vscode
 /bin
@@ -17,3 +13,9 @@
 /tinyVR/tinyVR.vcxproj
 /tinyVR.sln
 /.vs/tinyVR/FileContentIndex
+=======
+include/*.zip
+
+.vscode
+
+*.exe
